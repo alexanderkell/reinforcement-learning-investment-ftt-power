@@ -592,7 +592,11 @@ for t = 17:N
 %                         !-------Shares equation!! Core of the model!!------------------ 
                         %the use of erft(x) [i.e. tanh(1.25x)] instead of erf(x) is 2x faster with no changes of results
                         dFij = 1.414*sqrt(dTLCOE(i,k,t-1)*dTLCOE(i,k,t-1)+dTLCOE(j,k,t-1)*dTLCOE(j,k,t-1));
+                        
+%                       % Share equation is here
                         Fij = 0.5*(1+tanh(1.25*(TLCOEg(j,k,t-1)-TLCOEg(i,k,t-1))/dFij));
+                        
+                        
                         FF(i,j,k) = Fij*(1-isReg(i,k))*(1-isReg(j,k)) + isReg(j,k)*(1-isReg(i,k)) + .5*(isReg(i,k)*isReg(j,k));
                         FF(j,i,k) = (1-Fij)*(1-isReg(j,k))*(1-isReg(i,k)) + isReg(i,k)*(1-isReg(j,k)) + .5*(isReg(j,k)*isReg(i,k));
                         GG(i,j,k) = Gmax(i)*Gmin(j);
