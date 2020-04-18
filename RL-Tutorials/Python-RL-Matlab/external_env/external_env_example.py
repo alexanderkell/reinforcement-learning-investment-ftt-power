@@ -1,6 +1,6 @@
 from ray.rllib.env.external_env import ExternalEnv
 from ray.rllib.env.base_env import BaseEnv
-from gym.spaces import Tuple, Box
+from gym.spaces import Tuple, Box, Discrete
 from ray.tune.registry import register_env
 from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
@@ -62,18 +62,20 @@ class AdderEnvironment(gym.Env):
 
     def reset(self):
         # return np.array(0).reshape(1,)
-        return np.array([0]).reshape(1,)
+        return np.array([0, 0]).reshape(2,)
 
     def step(self, action):
-        reward = action[0] + action[1]
+        # reward = action[0] + action[1]
+        reward = action * 2
         # print(reward)
         obs = reward
-        if reward >= 1980:
+        if reward >= 50:
             done = True
         else:
             done = False
 
-        return np.array([obs, action[0], action[2]]).reshape(1,), reward, done, {}
+        # return np.array([obs, action[0], action[1]]).reshape(3,), reward, done, {}
+        return np.array([obs, action]).reshape(2,), reward, done, {}
 
 
 # Run RL algorithm
@@ -86,8 +88,10 @@ class AdderEnvironment(gym.Env):
 # register_env("my_env", lambda _: client_environment)
 
 if __name__ == "__main__":
-    action_space = Box(low=-1000, high=1000, shape=(2,), dtype=np.float)
-    observation_space = Box(low=-2000, high=2000, shape=(3,), dtype=np.float)
+    # action_space = Box(low=-1000, high=1000, shape=(2,), dtype=np.float)
+    action_space = Discrete(100)
+
+    observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
 
     # Can also register the env creator function explicitly with:
     # register_env("corridor", lambda config: SimpleCorridor(config))
@@ -98,13 +102,14 @@ if __name__ == "__main__":
     register_env("my_env", lambda _: client_environment)
 
     tune.run(
-        "PPO",
+        "DQN",
         stop={
-            "timesteps_total": 100000,
+            "timesteps_total": 10000000,
         },
         config={
             "env": 'my_env',  # or "corridor" if registered above
-            "vf_share_layers": True,
+            # "vf_share_layers": True,
+            # 'vf_clip_param': 1000000,
             # "lr": grid_search([1e-2, 1e-4, 1e-6]),  # try different lrs
             "lr": grid_search([1e-2]),  # try different lrs
             "num_workers": 1,  # parallelism
