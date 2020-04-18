@@ -61,18 +61,19 @@ class AdderEnvironment(gym.Env):
         self.observation_space = observation_space
 
     def reset(self):
-        return np.array(-1000).reshape(1,)
+        # return np.array(0).reshape(1,)
+        return np.array([0]).reshape(1,)
 
     def step(self, action):
         reward = action[0] + action[1]
         # print(reward)
         obs = reward
-        if reward >= 20:
+        if reward >= 1980:
             done = True
         else:
             done = False
 
-        return np.array(obs).reshape(1,), reward, done, {}
+        return np.array([obs, action[0], action[2]]).reshape(1,), reward, done, {}
 
 
 # Run RL algorithm
@@ -86,7 +87,7 @@ class AdderEnvironment(gym.Env):
 
 if __name__ == "__main__":
     action_space = Box(low=-1000, high=1000, shape=(2,), dtype=np.float)
-    observation_space = Box(low=-2000, high=2000, shape=(1,), dtype=np.float)
+    observation_space = Box(low=-2000, high=2000, shape=(3,), dtype=np.float)
 
     # Can also register the env creator function explicitly with:
     # register_env("corridor", lambda config: SimpleCorridor(config))
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     tune.run(
         "PPO",
         stop={
-            "timesteps_total": 10000,
+            "timesteps_total": 100000,
         },
         config={
             "env": 'my_env',  # or "corridor" if registered above
@@ -107,11 +108,8 @@ if __name__ == "__main__":
             # "lr": grid_search([1e-2, 1e-4, 1e-6]),  # try different lrs
             "lr": grid_search([1e-2]),  # try different lrs
             "num_workers": 1,  # parallelism
-
         },
     )
-
-
 
 # trainer = PPOTrainer(env="my_env")
 # while True:
