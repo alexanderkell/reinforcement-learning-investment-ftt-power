@@ -8,7 +8,7 @@ import numpy as np
 
 import gym, ray, ray.tune
 from ray.rllib.utils.policy_server import PolicyServer
-
+from ray.rllib.models import ModelCatalog
 import ray
 from ray import tune
 from ray.rllib.utils import try_import_tf
@@ -78,6 +78,25 @@ class AdderEnvironment(gym.Env):
         return np.array([obs, action]).reshape(2,), reward, done, {}
 
 
+class AdderExternalEnvironment(ExternalEnv):
+
+    def __init__(self, action_space, observation_space):
+        super().__init__(action_space, observation_space)
+
+    def run(self):
+
+        # Your loop should continuously:
+        while True:
+            episode_id = self.start_episode()
+            env = AdderEnvironment(self.action_space, self.observation_space)
+            observation = env.reset()
+            for _ in range(1000):
+                action = self.get_action(episode_id, observation)
+                observation, reward, done, info = env.step(action)
+                self.log_returns(episode_id, reward)
+            self.end_episode(episode_id, observation)
+
+
 # Run RL algorithm
 # ray.init()
 
@@ -96,10 +115,11 @@ if __name__ == "__main__":
     # Can also register the env creator function explicitly with:
     # register_env("corridor", lambda config: SimpleCorridor(config))
     ray.init(object_store_memory=5000000000)
-    # ModelCatalog.register_custom_model("my_model", CustomModel)
-    client_environment = AdderEnvironment(action_space=action_space, observation_space=observation_space)
+    # client_environment = AdderEnvironment(action_space=action_space, observation_space=observation_space)
+    client_environment = AdderExternalEnvironment(action_space=action_space, observation_space=observation_space)
 
-    register_env("my_env", lambda _: client_environment)
+    register_env("my_env", lambda _: AdderExternalEnvironment(action_space=action_space, observation_space=observation_space))
+    # ModelCatalog.register_custom_model("my_model", client_environment)
 
     tune.run(
         "DQN",
