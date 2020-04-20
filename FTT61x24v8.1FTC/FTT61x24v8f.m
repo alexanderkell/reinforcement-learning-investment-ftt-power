@@ -567,6 +567,7 @@ for k = 1:NWR
     CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
 end
 
+% AJMK: Loop through each year
 for t = 17:N
     if mod(t,4)==0
         if ~ishandle(hw)
@@ -580,7 +581,10 @@ for t = 17:N
     isReg = (REG(:,:,t) > 0).*(1 + tanh(2*1.25*(U(:,:,t-1)-REG(:,:,t))./REG(:,:,t)));
     isReg(REG(:,:,t) == 0) = 1;
 
+    % Loop through each world region
     for k = 1:NWR
+        
+        % Loop through each energy technology
         for i = 1:NET
             %!Components of the constraints matrix Gij
             Gmax(i) = tanh(1.25*(Shat(i,k,t-1)-S(i,k,t-1))/Gb(i,k));
@@ -593,7 +597,8 @@ for t = 17:N
                         %the use of erft(x) [i.e. tanh(1.25x)] instead of erf(x) is 2x faster with no changes of results
                         dFij = 1.414*sqrt(dTLCOE(i,k,t-1)*dTLCOE(i,k,t-1)+dTLCOE(j,k,t-1)*dTLCOE(j,k,t-1));
                         
-%                       % Share equation is here
+%                       % Share equation is here 
+                        % (Important part - decision making function)
                         Fij = 0.5*(1+tanh(1.25*(TLCOEg(j,k,t-1)-TLCOEg(i,k,t-1))/dFij));
                         
                         
