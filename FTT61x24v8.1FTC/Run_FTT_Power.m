@@ -1,61 +1,75 @@
 
 
+function observations = Run_FTT_Power(action)
+    k = 1;
+    u = 1;
 
-k = 1;
-u = 1;
 
+    handles.PathField = 'Scenarios/';
+    % handles.MaxScenarioEdit = '0'
+    handles.CostsEdit = 'Assump_FTTpower_61.xlsx';
+    handles.HistoricalEdit = 'FTT61x24v8.1_HistoricalData2017.xls';
+    handles.CSCDataEdit = 'FTT61x24v8_CSCurvesHybrid.xlsx';
 
-handles.PathField = 'Scenarios/';
-% handles.MaxScenarioEdit = '0'
-handles.CostsEdit = 'Assump_FTTpower_61.xlsx';
-handles.HistoricalEdit = 'FTT61x24v8.1_HistoricalData2017.xls';
-handles.CSCDataEdit = 'FTT61x24v8_CSCurvesHybrid.xlsx';
+    handles.NWR = 61;
+    handles.NET = 24;
+    handles.dtEdit = '0.25';
+    handles.EndEdit = '2050';
 
-handles.NWR = 61;
-handles.NET = 24;
-handles.dtEdit = '0.25';
-handles.EndEdit = '2050';
+    AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
+    HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
+    CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
+    if exist(HistoricalFileName)
+        hw = waitbar(0,'Reading input data from Excel');
+        waitbar(1/6);
+        % read cost data 
+        CostSheet = xlsread(AssumptionsFileName,strcat('Costs'));
+        % read historical and resource data 
+        waitbar(2/6);
+        HistoricalG = xlsread(HistoricalFileName,'HistoricalG');
+        waitbar(3/6);
+        HistoricalE = xlsread(HistoricalFileName,'HistoricalE');
+        waitbar(4/6);
+        CapacityFactors = xlsread(HistoricalFileName,'CapacityFactors');
+        waitbar(5/6);
+        CSCData = xlsread(CSCDataFileName);
+        close(hw);
+        handles.CostSheet = CostSheet;
+        handles.HistoricalG = HistoricalG;
+        handles.HistoricalE = HistoricalE;
+        handles.CapacityFactors = CapacityFactors;
+        handles.CSCData = CSCData;    
+    else
+        errordlg('Assumption file not found');
+        % read cost data 
+        CostSheet = '';
+        % read historical and resource data 
+        HistoricalG = '';
+        HistoricalE = '';
+        CapacityFactors = '';
+        CSCData = '';
+    end
 
-AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
-HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
-CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
-if exist(HistoricalFileName)
-    hw = waitbar(0,'Reading input data from Excel');
-    waitbar(1/6);
-    % read cost data 
-    CostSheet = xlsread(AssumptionsFileName,strcat('Costs'));
-    % read historical and resource data 
-    waitbar(2/6);
-    HistoricalG = xlsread(HistoricalFileName,'HistoricalG');
-    waitbar(3/6);
-    HistoricalE = xlsread(HistoricalFileName,'HistoricalE');
-    waitbar(4/6);
-    CapacityFactors = xlsread(HistoricalFileName,'CapacityFactors');
-    waitbar(5/6);
-    CSCData = xlsread(CSCDataFileName);
-    close(hw);
-    handles.CostSheet = CostSheet;
-    handles.HistoricalG = HistoricalG;
-    handles.HistoricalE = HistoricalE;
-    handles.CapacityFactors = CapacityFactors;
-    handles.CSCData = CSCData;    
-else
-    errordlg('Assumption file not found');
-    % read cost data 
-    CostSheet = '';
-    % read historical and resource data 
-    HistoricalG = '';
-    HistoricalE = '';
-    CapacityFactors = '';
-    CSCData = '';
+    output = CalcAll_Callback(handles);
+
+    G_cum = sum(sum(sum(output.G)));
+    U_cum = sum(sum(sum(output.U)));
+    E_cum = sum(sum(sum(output.E)));
+    CF_cum = sum(sum(sum(output.CF)));
+    LCOE_cum = sum(sum(sum(output.LCOE)));
+    TLCOE_cum = sum(sum(sum(output.TLCOE)));
+    W_cum = sum(sum(sum(output.W)));
+    I_cum = sum(sum(sum(output.I)));
+    P_cum = sum(sum(sum(output.P)));
+    Fcosts_cum = sum(sum(sum(output.FCosts)));
+    CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
+    % S_lim_cum = 
+    % S_lim2_cum = 
+
+    % handles
+
+    observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
 end
-
-output = CalcAll_Callback(handles)
-
-% handles
-
-% FTT61x24v8f
-
 
 function [Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet] = ReadData(AssumptionsFileName,HistoricalFileName,CSCDataFileName,k,u)
 %Filenames is a cell of strings
