@@ -1,6 +1,7 @@
+% action = "Hello";
 
+function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
-function observations = Run_FTT_Power(action)
     k = 1;
     u = 1;
 
@@ -10,9 +11,13 @@ function observations = Run_FTT_Power(action)
     handles.CostsEdit = 'Assump_FTTpower_61.xlsx';
     handles.HistoricalEdit = 'FTT61x24v8.1_HistoricalData2017.xls';
     handles.CSCDataEdit = 'FTT61x24v8_CSCurvesHybrid.xlsx';
-
-    handles.NWR = 61;
-    handles.NET = 24;
+    
+    
+%     handles.NWR = 61;
+%     handles.NET = 24;
+    handles.NWR = input_NWR;
+%     handles.NWR = 12;
+    handles.NET = input_NET;
     handles.dtEdit = '0.25';
     handles.EndEdit = '2050';
 
@@ -49,8 +54,8 @@ function observations = Run_FTT_Power(action)
         CapacityFactors = '';
         CSCData = '';
     end
-
-    output = CalcAll_Callback(handles);
+%     PatchAllData_Callback(handles)
+    output = CalcAll_Callback(handles, action);
 
     G_cum = sum(sum(sum(output.G)));
     U_cum = sum(sum(sum(output.U)));
@@ -106,9 +111,12 @@ else
 end
 end
 
+
+
+
 %---
 
-function output_simulation = CalcAll_Callback(handles)
+function output_simulation = CalcAll_Callback(handles, action)
 %---Function that calculates all baseline+scenarios
 % kk = str2num(get(handles.MaxScenarioEdit,'string'))+1;
 % if ~isempty(handles.HistoricalG)
@@ -145,7 +153,7 @@ if ~isempty(CostSheet)
     %Simulation here!
     clear handles.Scenario(k);
 %     handles.Scenario(k) = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
-    output_simulation = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
+    output_simulation = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
 end
 end
 %     set(handles.Slots(k),'BackgroundColor',[1 1 0]);
@@ -229,3 +237,85 @@ else
     CSCData = '';
 end
 end
+
+
+
+% % function PatchAllData_Callback(hObject, eventdata, handles)
+% function PatchAllData_Callback(handles)
+% 
+% handles.RegStr = {'1 Belgium','2 Denmark','3 Germany','4 Greece','5 Spain','6 France','7 Ireland','8 Italy','9 Luxembourg','10 Netherlands','11 Austria','12 Portugal','13 Finland','14 Sweden','15 UK','16 Czech Republic','17 Estonia','18 Cyprus','19 Latvia','20 Lithuania','21 Hungary','22 Malta','23 Poland','24 Slovenia','25 Slovakia','26 Bulgaria','27 Romania','28 Norway','29 Switzerland','30 Iceland','31 Croatia','32 Turkey','33 Macedonia','34 USA','35 Japan','36 Canada','37 Australia','38 New Zealand','39 Russian Federation','40 Rest of Annex I','41 China','42 India','43 Mexico','44 Brazil','45 Argentina','46 Colombia','47 Rest of Latin America','48 Korea','49 Taiwan','50 Indonesia','51 Rest of ASEAN','52 OPEC excl Venezuela','53 Rest of world','54 Ukraine','55 Saudi Arabia','56 Nigeria','57 South Africa','58 Rest of Africa','59 Africa OPEC','60 Malaysia','61 Kazakhstan'};
+% set(handles.RegListBox,'string',handles.RegStr);
+% handles.TechStr = {'1- Nuclear','2- Oil','3- Coal','4- Coal + CCS','5- IGCC','6- IGCC + CCS','7- CCGT','8- CCGT + CCS','9- Solid Biomass','10- S Biomass CCS','11- BIGCC','12- BIGCC + CCS','13- Biogas','14- Biogas + CCS','15- Tidal','16- Large Hydro','17- Onshore','18- Offshore','19- Solar PV','20- CSP','21- Geothermal','22- Wave','23- Fuel Cells','24- CHP'};
+% set(handles.TechListBox,'string',handles.TechStr);
+% 
+% %FTTTrpatchARB(XX,YY,Q,L)
+% %---Function that patches areas for each technology
+% %---Function that plots the data with one line per technology
+% %i = get(get(handles.VariablSelector,'SelectedObject'),'string');
+% % i = get(handles.VarListBox,'Value');
+% % VarList = get(handles.VarListBox,'String');
+% % VarName = VarList{i};
+% % R = get(handles.RegListBox,'Value');
+% % RegList = get(handles.RegListBox,'string');
+% % T = get(handles.TechListBox,'Value');
+% % TechList = get(handles.TechListBox,'string');
+% k = ScenarioNumber(handles);
+% RT = get(get(handles.RegTechSelector,'SelectedObject'),'string');
+% 
+% switch RT
+%     case 'Tech'
+%         TechStr = TechList(T,:);
+%         if (length(R) < 4)
+%             RegStr = RegList(R,:);
+%         elseif length(R) == handles.NWR
+%             RegStr = 'World';
+%         else
+%             RegStr = '';
+%         end
+%     case 'Regions'
+%         RegStr = RegList(R,:);
+%         if length(T) < 4
+%             TechStr = TechList(T,:);
+%         elseif length(T) == handles.NET
+%             TechStr = 'All Tech';
+%         else
+%             TechStr = '';
+%         end
+% end
+% 
+% %Dims: (t, NET, NWR)
+% if sum(((get(handles.Slots(k),'BackgroundColor')==[1 0 0]) | (get(handles.Slots(k),'BackgroundColor')==[1 1 0])))==3
+%     [handles.N,handles.AH] = FigureAxes(handles);
+%     switch VarName
+%         case 'W'
+%             switch RT
+%                 case 'Regions'
+%                     FTT61x24v8patch(handles.Scenario(k).Ht,sum(handles.Scenario(k).W(:,T),2),TechStr,RegStr);
+%                     ylabel(handles.Scenario(k).Names.(VarName));
+%                 case 'Tech'
+%                     FTT61x24v8patch(handles.Scenario(k).Ht,handles.Scenario(k).W(:,T),RegStr,TechStr);
+%                     ylabel(handles.Scenario(k).Names.(VarName));
+%             end
+%         otherwise
+%             if size(handles.Scenario(k).(VarName),1) == size(handles.Scenario(k).t,1)
+%                 tname = 't';
+%             else
+%                 tname = 'Ht';
+%             end
+%             if ndims(handles.Scenario(k).(VarName))==2  %Means it's missing the NET dimension
+%                 FTT61x24v8patch(handles.Scenario(k).Ht,handles.Scenario(k).(VarName)(:,R),RegStr,RegStr);
+%                 ylabel(handles.Scenario(k).Names.(VarName));
+%             else
+%                 switch RT
+%                     case 'Regions'
+%                         FTT61x24v8patch(handles.Scenario(k).(tname),permute(sum(handles.Scenario(k).(VarName)(:,T,R),2),[1 3 2]),TechStr,RegStr);
+%                         ylabel(handles.Scenario(k).Names.(VarName));
+%                     case 'Tech'
+%                         FTT61x24v8patch(handles.Scenario(k).(tname),permute(sum(handles.Scenario(k).(VarName)(:,T,R),3),[1 2 3]),RegStr,TechStr);
+%                         ylabel(handles.Scenario(k).Names.(VarName));
+%                 end
+%             end
+%     end
+% end
+% end
+% 

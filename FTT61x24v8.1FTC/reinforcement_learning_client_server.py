@@ -44,7 +44,8 @@ class AdderServing(ExternalEnv):
         server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT)
         server.serve_forever()
 
-class AdderEnvironment(gym.Env):
+
+class FTTPowerEnvironment(gym.Env):
 
     def __init__(self, action_space, observation_space):
         self.action_space = action_space
@@ -68,7 +69,7 @@ class AdderEnvironment(gym.Env):
         return np.array([obs, action]).reshape(2,), reward, done, {}
 
 
-class AdderExternalEnvironment(ExternalEnv):
+class FTTPowerExternalEnvironment(ExternalEnv):
 
     def __init__(self, action_space, observation_space):
         super().__init__(action_space, observation_space)
@@ -87,6 +88,7 @@ class AdderExternalEnvironment(ExternalEnv):
             self.end_episode(episode_id, observation)
 
 
+
 # Run RL algorithm
 # ray.init()
 
@@ -98,8 +100,8 @@ class AdderExternalEnvironment(ExternalEnv):
 
 if __name__ == "__main__":
     eng = matlab.engine.start_matlab()
-    print("Running FTT:Power    ")
-    result = eng.Run_FTT_Power()
+    print("Running FTT:Power   ")
+    result = eng.Run_FTT_Power("action", 61.0, 24.0)
     print(result)
 #     # action_space = Box(low=-1000, high=1000, shape=(2,), dtype=np.float)
 #     action_space = Discrete(100)

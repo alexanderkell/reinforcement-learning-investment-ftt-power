@@ -15,7 +15,7 @@
 % You should have received a copy of the GNU General Public License
 % along with FTT61x24v8.  If not, see <http://www.gnu.org/licenses/>.
 
-function Out = FTT61x24v8(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
+function Out = FTT61x24v8(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, action);
 
 %---FTT20x24: Third prototype of the ETM in 20 world regions
 %---ETM24: Second prototype of the ETM single global region
@@ -606,9 +606,12 @@ for t = 17:N
                         FF(j,i,k) = (1-Fij)*(1-isReg(j,k))*(1-isReg(i,k)) + isReg(i,k)*(1-isReg(j,k)) + .5*(isReg(j,k)*isReg(i,k));
                         GG(i,j,k) = Gmax(i)*Gmin(j);
                         GG(j,i,k) = Gmax(j)*Gmin(i);
+                        
+                        % This should be the RL action - Change in dSij (movement from i to j)
                         dSij(i,j,k) = (S(i,k,t-1)^Unc(1)*S(j,k,t-1)*A(i,j,k)*FF(i,j,k)*GG(i,j,k)- ...
                                       S(i,k,t-1)*S(j,k,t-1)^Unc(1)*A(j,i,k)*FF(j,i,k)*GG(j,i,k))*dt/tScaling;
                         dSij(j,i,k) = -dSij(i,j,k);
+
                     end
                 end
             end
