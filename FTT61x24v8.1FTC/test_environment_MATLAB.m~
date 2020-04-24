@@ -5,8 +5,6 @@
 import ray.rllib.env.policy_client.*
 import gym.*
 import reinforcement_learning_client_server.*
-import numpy.*
-
 % import reinforcement_learning_client_server.*
 % rl_client_server = py.importlib.import_module('reinforcement_learning_client_server');
 py.importlib.import_module('reinforcement_learning_client_server')
@@ -17,14 +15,11 @@ py.importlib.import_module('reinforcement_learning_client_server')
 % env = py.gym.make("CartPole-v0")
 
 % action_space = Box(low=-1000, high=1000, shape=(2,), dtype=np.float)
-% action_space = py.gym.spaces.Discrete(100)
+action_space = py.gym.spaces.Discrete(100)
 
-% observation_space = py.gym.spaces.Box([-2000;-2000], [2000;2000]);
-% 
-% action_space = py.reinforcement_learning_client_server.action_space
-% observation_space = py.reinforcement_learning_client_server.observation_space
+observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
 
-env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2)
+env = py.reinforcement_learning_client_server.FTTPowerEnvironment()
 
 client = py.ray.rllib.env.policy_client.PolicyClient('http://localhost:9900');
 

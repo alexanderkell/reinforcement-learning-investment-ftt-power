@@ -33,6 +33,7 @@ SERVER_PORT = 9900
 CHECKPOINT_FILE = "last_checkpoint.out"
 
 
+
 class AdderServing(ExternalEnv):
 
     def __init__(self, action_space, observation_space):
@@ -48,6 +49,10 @@ class AdderServing(ExternalEnv):
 class FTTPowerEnvironment(gym.Env):
 
     def __init__(self, action_space, observation_space):
+        action_space = Discrete(100)
+
+        observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
+
         self.action_space = action_space
         self.observation_space = observation_space
 

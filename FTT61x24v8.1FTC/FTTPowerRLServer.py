@@ -13,19 +13,54 @@ from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
+import gym
+from gym.spaces import Box, Discrete
+import numpy as np
+import ray.tune as tune
+
+from ray.tune.registry import register_env
 
 SERVER_ADDRESS = "127.0.0.1"
-SERVER_PORT = 9900
+SERVER_PORT = 9901
 CHECKPOINT_FILE = "last_checkpoint_{}.out"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--run", type=str, default="DQN")
 
+class FTTPowerEnvironment1(gym.Env):
+
+    def __init__(self):
+        action_space = Discrete(100)
+
+        observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
+
+        self.action_space = action_space
+        self.observation_space = observation_space
+
+    def reset(self):
+        # return np.array(0).reshape(1,)
+        return np.array([0, 0]).reshape(2,)
+
+    def step(self, action):
+        # reward = action[0] + action[1]
+        reward = action * 2
+        # print(reward)
+        obs = reward
+        if reward >= 50:
+            done = True
+        else:
+            done = False
+
+        # return np.array([obs, action[0], action[1]]).reshape(3,), reward, done, {}
+        return np.array([obs, action]).reshape(2,), reward, done, {}
+
 if __name__ == "__main__":
     args = parser.parse_args()
-    ray.init()
 
-    env = "CartPole-v0"
+    ray.init(num_cpus=4)
+
+    # env = FTTPowerEnvironment(1, 2)
+    register_env("srv", lambda config: FTTPowerEnvironment1())
     connector_config = {
         # Use the connector server to generate experiences.
         "input": (
@@ -33,7 +68,7 @@ if __name__ == "__main__":
                 ioctx, SERVER_ADDRESS, SERVER_PORT)
         ),
         # Use a single worker process to run the server.
-        "num_workers": 0,
+        "num_workers": 1,
         # Disable OPE, since the rollouts are coming from online clients.
         "input_evaluation": [],
     }
@@ -41,7 +76,7 @@ if __name__ == "__main__":
     if args.run == "DQN":
         # Example of using DQN (supports off-policy actions).
         trainer = DQNTrainer(
-            env=env,
+            env="srv",
             config=dict(
                 connector_config, **{
                     "exploration_config": {
@@ -50,14 +85,14 @@ if __name__ == "__main__":
                         "final_epsilon": 0.02,
                         "epsilon_timesteps": 1000,
                     },
-                    "learning_starts": 100,
-                    "timesteps_per_iteration": 200,
-                    "log_level": "INFO",
+                    # "learning_starts": 100,
+                    # "timesteps_per_iteration": 200,
+                    # "log_level": "INFO",
                 }))
     elif args.run == "PPO":
         # Example of using PPO (does NOT support off-policy actions).
         trainer = PPOTrainer(
-            env=env,
+            env="srv",
             config=dict(
                 connector_config, **{
                     "sample_batch_size": 1000,
@@ -81,3 +116,25 @@ if __name__ == "__main__":
         print("Last checkpoint", checkpoint)
         with open(checkpoint_path, "w") as f:
             f.write(checkpoint)
+
+    # tune.run_experiments({
+    #     "my_experiment": {
+    #         # "run": "PG",
+    #         "run": "DQN",
+    #         "env": "srv",
+    #         'checkpoint_at_end': True,
+    #         'checkpoint_freq': 500,
+    #        # 'restore': '../ray_results/my_experiment/PG_srv_0_2019-11-02_18-13-192rctqjmg/checkpoint_200/checkpoint-200',
+    #        #  "config": {
+    #             # "num_gpus": 0,
+    #             # "num_workers": 1,
+    #             # "env": "srv",
+    #             # "evaluation_num_episodes": 10,
+    #             # # "sgd_stepsize": tune.grid_search([0.01, 0.001, 0.0001])
+    #             # "sample_batch_size": 25,
+    #             # "train_batch_size": 25,
+    #             # "horizon": 25,
+    #         # }
+    #     }
+    # })
+
