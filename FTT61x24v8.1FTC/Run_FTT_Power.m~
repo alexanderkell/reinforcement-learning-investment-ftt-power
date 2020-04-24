@@ -124,7 +124,7 @@ end
 
 %---
 
-function output_simulation = CalcAll_Callback(handles, client, eid, obs)
+function output_simulation = CalcAll_Callback(handles, action)
 %---Function that calculates all baseline+scenarios
 % kk = str2num(get(handles.MaxScenarioEdit,'string'))+1;
 % if ~isempty(handles.HistoricalG)
@@ -161,7 +161,7 @@ if ~isempty(CostSheet)
     %Simulation here!
     clear handles.Scenario(k);
 %     handles.Scenario(k) = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
-    output_simulation = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
+    output_simulation = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
 end
 end
 %     set(handles.Slots(k),'BackgroundColor',[1 1 0]);

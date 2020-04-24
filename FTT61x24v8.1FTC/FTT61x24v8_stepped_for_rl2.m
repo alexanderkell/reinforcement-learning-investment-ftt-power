@@ -15,7 +15,7 @@
 % You should have received a copy of the GNU General Public License
 % along with FTT61x24v8.  If not, see <http://www.gnu.org/licenses/>.
 
-function Out = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, action);
+function Out = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
 
 %---FTT20x24: Third prototype of the ETM in 20 world regions
 %---ETM24: Second prototype of the ETM single global region
@@ -590,7 +590,7 @@ for t = 17:N
             Gmax(i) = tanh(1.25*(Shat(i,k,t-1)-S(i,k,t-1))/Gb(i,k));
             Gmin(i) = tanh(1.25*(-(Shat2(i,k,t-1)-S(i,k,t-1))/Gb(i,k)));
             
-            get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k);
+            get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, client, eid, obs);
         end
         % !Add exogenous capacity changes (if any) and correct for regulations:
         % !Where MWKA>0 we have exogenously defined shares
@@ -789,7 +789,7 @@ Out.CostStor = permute(CostStor,[2 1]);
 
 end
 
-function dSij = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k)
+function dSij = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, client, eid, obs)
     if (S(i,k,t-1) > 0 & MWKA(i,k,t) < 0)
         for j = 1:i-1
             if (S(j,k,t-1) > 0 & MWKA(j,k,t) < 0)
@@ -811,7 +811,7 @@ function dSij = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k)
 %                 dSij(i,j,k) = (S(i,k,t-1)^Unc(1)*S(j,k,t-1)*A(i,j,k)*FF(i,j,k)*GG(i,j,k)- ...
 %                               S(i,k,t-1)*S(j,k,t-1)^Unc(1)*A(j,i,k)*FF(j,i,k)*GG(j,i,k))*dt/tScaling;
 %                 dSij(j,i,k) = -dSij(i,j,k);
-                c = 1+1;
+                action = client.get_action(eid, obs);
 
             end
         end
