@@ -5,17 +5,17 @@ import reinforcement_learning_client_server.*
 import numpy.*
 import gym.Env.*
 
-py.importlib.import_module('reinforcement_learning_client_server')
+py.importlib.import_module('reinforcement_learning_client_server');
 
 
 
-disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2))
+disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
 
-client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9900')
+client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9900');
 
-eid = client.start_episode()
+eid = client.start_episode();
 
-obs = env.reset()
+obs = env.reset();
 rewards = 0
 while true
     action = client.get_action(eid, obs);
