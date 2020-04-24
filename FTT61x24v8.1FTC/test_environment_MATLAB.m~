@@ -5,6 +5,9 @@
 import ray.rllib.env.policy_client.*
 import gym.*
 import reinforcement_learning_client_server.*
+import numpy.*
+import gym.Env.*
+
 % import reinforcement_learning_client_server.*
 % rl_client_server = py.importlib.import_module('reinforcement_learning_client_server');
 py.importlib.import_module('reinforcement_learning_client_server')
@@ -15,21 +18,26 @@ py.importlib.import_module('reinforcement_learning_client_server')
 % env = py.gym.make("CartPole-v0")
 
 % action_space = Box(low=-1000, high=1000, shape=(2,), dtype=np.float)
-action_space = py.gym.spaces.Discrete(100)
+% action_space = py.gym.spaces.Discrete(100)
 
-observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
+% observation_space = py.gym.spaces.Box([-2000;-2000], [2000;2000]);
+% 
+% action_space = py.reinforcement_learning_client_server.action_space
+% observation_space = py.reinforcement_learning_client_server.observation_space
 
-env = py.reinforcement_learning_client_server.FTTPowerEnvironment()
+disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2))
 
-client = py.ray.rllib.env.policy_client.PolicyClient('http://localhost:9900');
+% env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2)
 
+client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9901')
+counter = 1
 eid = client.start_episode()
 
 obs = env.reset()
 rewards = 0
-reward=0;
-done=false;
-info=0;
+% reward=0;
+% done=false;
+%   info=0;
 while true
     action = client.get_action(eid, obs);
     [obs, reward, done, info] = env.step(action);

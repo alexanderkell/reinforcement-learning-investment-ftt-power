@@ -62,6 +62,7 @@ class FTTPowerEnvironment(gym.Env):
 
     def step(self, action):
         # reward = action[0] + action[1]
+        print("-------HI--------")
         reward = action * 2
         # print(reward)
         obs = reward
