@@ -811,8 +811,10 @@ function dSij = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, client
 %                 dSij(i,j,k) = (S(i,k,t-1)^Unc(1)*S(j,k,t-1)*A(i,j,k)*FF(i,j,k)*GG(i,j,k)- ...
 %                               S(i,k,t-1)*S(j,k,t-1)^Unc(1)*A(j,i,k)*FF(j,i,k)*GG(j,i,k))*dt/tScaling;
 %                 dSij(j,i,k) = -dSij(i,j,k);
-                action = client.get_action(eid, obs);
-
+                
+%                 action = client.get_action(eid, obs);
+%                 dSij = client.get_action(eid, obs);
+                dSij = 0.4;
             end
         end
     end

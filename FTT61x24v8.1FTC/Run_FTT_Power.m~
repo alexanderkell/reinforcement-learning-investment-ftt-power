@@ -15,8 +15,6 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     eid = "holder";
 %     obs = "holder";
 
-% Holder for action
-    action=1;
     
     k = 1;
     u = 1;
@@ -70,7 +68,6 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         CSCData = '';
     end
 %     PatchAllData_Callback(handles)
-
     output = CalcAll_Callback(handles, action, client, eid, obs);
 
     G_cum = sum(sum(sum(output.G)));
@@ -132,7 +129,7 @@ end
 
 %---
 
-function output_simulation = CalcAll_Callback(handles, action, client, eid, obs)
+function output_simulation = CalcAll_Callback(handles, client, eid, obs)
 %---Function that calculates all baseline+scenarios
 % kk = str2num(get(handles.MaxScenarioEdit,'string'))+1;
 % if ~isempty(handles.HistoricalG)

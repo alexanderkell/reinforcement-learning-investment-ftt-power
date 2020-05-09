@@ -297,6 +297,8 @@ for k=1:NWR
     HE(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalE(7+(k-1)*27:30+(k-1)*27,47:51)'/1000,2013+dt*[1:17]'),[2 3 1]); %Factor 1000 IEA Mt -> Gt    
 end
 
+
+
 %---Format Assumptions Data
 %Lists for plot legends:
 TechList = {'1- Nuclear','2- Oil','3- Coal','4- Coal + CCS','5- IGCC','6- IGCC + CCS','7- CCGT','8- CCGT + CCS','9- Solid Biomass','10- S Biomass CCS','11- BIGCC','12- BIGCC + CCS','13- Biogas','14- Biogas + CCS','15- Tidal','16- Large Hydro','17- Onshore','18- Offshore','19- Solar PV','20- CSP','21- Geothermal','22- Wave','23- Fuel Cells','24- CHP'};
