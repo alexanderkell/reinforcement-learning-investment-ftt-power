@@ -15,7 +15,7 @@
 % You should have received a copy of the GNU General Public License
 % along with FTT61x24v8.  If not, see <http://www.gnu.org/licenses/>.
 
-function Out = FTT61x24v8(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, action);
+function Out = FTT61x24v8f_reduced_NWR_NET(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, action);
 
 %---FTT20x24: Third prototype of the ETM in 20 world regions
 %---ETM24: Second prototype of the ETM single global region
@@ -294,6 +294,7 @@ for k=1:NWR
     HG(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalG(7+(k-1)*27:30+(k-1)*27,47:51)',2013+dt*[1:17]'),[2 3 1]);
     HE(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalE(7+(k-1)*27:30+(k-1)*27,47:51)'/1000,2013+dt*[1:17]'),[2 3 1]); %Factor 1000 IEA Mt -> Gt    
 end
+
 
 %---Format Assumptions Data
 %Lists for plot legends:
