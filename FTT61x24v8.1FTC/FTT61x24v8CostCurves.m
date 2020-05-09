@@ -41,7 +41,8 @@ function [CostsOut,TPED,CF,POut,CSCDataOut] = FTT21x24v8CostCurves(CostsIn,G,P,C
 %---    It is returned CSCDataOut since densities of stock resources gradually deplete
 
 NET = 24;
-NWR = size(G,2);
+% NWR = size(G,2);
+NWR = 2;
 NNR = 14;
 CostsOut = CostsIn;
 

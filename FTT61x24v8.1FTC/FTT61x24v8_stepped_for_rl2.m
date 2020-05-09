@@ -232,6 +232,8 @@ NLB = 6; %Number of load bands in electricity market
 %  |_________|/
 %      NET
 
+NWR = 2
+
 N = (EndYear-2013)/dt+1;
 HN = 44; %Number of historical data points (up to 2012 inclusively)
 t = 2013+dt*[0:N-1]';
@@ -286,14 +288,21 @@ GLB3 = zeros(NET,NLB,NWR,N);  %Generation for each tech x load bands in electric
 
 %---Format Historical Data
 Ht = HistoricalG(6,4:47)';
-for k=1:NWR
+% for k=1:NWR
+% for k = 1:3
+for k = [7, 15] % Ireland and UK only
     %Before 2013 (up to 2012)
+    
+    writematrix(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),'HG-3NWR.csv')
     HG(:,k,1:HN) = permute(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2]);
     HE(:,k,1:HN) = permute(HistoricalE(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2])/1000; %Factor 1000 IEA Mt -> Gt
     %From 2013 to 2017 quarterly
     HG(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalG(7+(k-1)*27:30+(k-1)*27,47:51)',2013+dt*[1:17]'),[2 3 1]);
     HE(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalE(7+(k-1)*27:30+(k-1)*27,47:51)'/1000,2013+dt*[1:17]'),[2 3 1]); %Factor 1000 IEA Mt -> Gt    
 end
+
+
+writematrix(HG,'HG.csv')
 
 %---Format Assumptions Data
 %Lists for plot legends:
@@ -337,7 +346,9 @@ MRIT = .6;
 
 %Regional Data:
 %Matrices and parameters
-for k = 1:NWR
+% for k = 1:NWR
+for k = [7, 15] % Ireland and UK only
+
     %---Matrices
     %Frequencies
     A(:,:,k) = RegSheet([5:28]+27*(k-1),29:52);
@@ -347,14 +358,16 @@ end
 %Demand
 year = DPSheet(3,3:47);
 %Demand profile dD/D (fraction of demand which is peak time)
-dDovD = interp1N(year'*ones(1,NWR),DPSheet(4:64,3:47)',t*ones(1,NWR));
+% dDovD = interp1N(year'*ones(1,NWR),DPSheet(4:64,3:47)',t*ones(1,NWR));
+dDovD = interp1N(year'*ones(1,NWR),DPSheet([7, 15],3:47)',t*ones(1,NWR));
 %Energy Storage generation normalised by the demand
-EStorage = interp1N(year'*ones(1,NWR),DPSheet(67:127,3:47)',t*ones(1,NWR));
+EStorage = interp1N(year'*ones(1,NWR),DPSheet([67+7, 67+15],3:47)',t*ones(1,NWR));
 %Demand profile dU/U (required capacity to cover peak time)
-dUovU = interp1N(year'*ones(1,NWR),DPSheet(130:190,3:47)',t*ones(1,NWR));
+dUovU = interp1N(year'*ones(1,NWR),DPSheet([130+7, 130+15],3:47)',t*ones(1,NWR));
 %Energy Storage capacity normalised by the demand
-UStorage = interp1N(year'*ones(1,NWR),DPSheet(193:253,3:47)',t*ones(1,NWR));
-for k = 1:NWR
+UStorage = interp1N(year'*ones(1,NWR),DPSheet([193+7, 193+15],3:47)',t*ones(1,NWR));
+% for k = 1:NWR
+for k = [7, 15] % Ireland and UK only
     %Electicity demand GWh: corresponds to end of year demand
     %Note that D() corresponds to current demand
     %1-U, 2- Oil, 3- Coal, 4- Coal, 5- Biomass, 6- Electricity
@@ -397,7 +410,9 @@ end
 %Capacity Factors for flexible systems
 CF0 = CapacityFactors(5:5+NET-1,3:3+NWR-1);
 CF(:,:,1) = CF0;
-for k = 1:NWR
+% for k = 1:NWR
+for k = [7, 15] % Ireland and UK only
+
     %Starting Generation (in GWh)
     G(:,k,1) = HG(:,k,HN); %in 2013
     %Subsidy/Taxes schemes
@@ -437,7 +452,9 @@ S(:,:,1) = U(:,:,1)./(ones(NET,1)*sum(U(:,:,1),1));
 %Check for missing capacity factors where generation starts
 CF(G(:,:,1)==0 & CF0(:,:,1)~=0) = CF0(G(:,:,1)==0 & CF0(:,:,1)~=0);
 %Grid allocation of production
-for k = 1:NWR
+% for k = 1:NWR
+for k = [7, 15] % Ireland and UK only
+
     %---- Determine the dispatch of capacity:
     %1--- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)
     [ULB(:,k,1),GLB(:,k,1),Curt(k,1),Ustor(k,1),CostStor(k,1)] = FTT61x24v8RLDCv2(G(:,k,1),CF(:,k,1),S(:,k,1),k);
@@ -515,7 +532,9 @@ for t = 2:16 %2014 to 2017 incl
     %Capacity factors
     CF(:,:,t) = CF(:,:,t-1);    
     %Check for missing capacity factors where generation starts
-     for k = 1:NWR
+%      for k = 1:NWR
+    for k = [7, 15] % Ireland and UK only
+
          CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
      end
     %Capacities (in GW) 
@@ -523,7 +542,9 @@ for t = 2:16 %2014 to 2017 incl
     %Shares 
     S(:,:,t) = U(:,:,t)./(ones(NET,1)*sum(U(:,:,t),1));
     %Grid allocation of production
-    for k = 1:NWR
+%     for k = 1:NWR
+    for k = [7, 15] % Ireland and UK only
+
         %---- Determine the dispatch of capacity:
         %1--- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)
         [ULB(:,k,t),GLB(:,k,t),Curt(k,t),Ustor(k,t),CostStor(k,t)] = FTT61x24v8RLDCv2(G(:,k,t),CF(:,k,t),S(:,k,t),k);
@@ -563,7 +584,9 @@ for t = 2:16 %2014 to 2017 incl
     TLCOEg(:,:,t) = TLCOE(:,:,t) + Gam;
 end
 %Check for missing capacity factors where generation starts
-for k = 1:NWR
+% for k = 1:NWR
+for k = [7, 15] % Ireland and UK only
+
     CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
 end
 
@@ -582,7 +605,9 @@ for t = 17:N
     isReg(REG(:,:,t) == 0) = 1;
 
     % Loop through each world region
-    for k = 1:NWR
+%     for k = 1:NWR
+    for k = [7, 15] % Ireland and UK only
+
         
         % Loop through each energy technology
         for i = 1:NET
@@ -611,7 +636,9 @@ for t = 17:N
         %Shares equation (sum over j in each region)
         S(:,k,t) = S(:,k,t-1) + permute(sum(dSij(:,:,k),2),[1 3 2]) + dSk(:,k);
     end
-    for k = 1:NWR
+%     for k = 1:NWR
+    for k = [7, 15] % Ireland and UK only
+
         %-- Determine the dispatch of capacity:
         %---- Determine the dispatch of capacity:
         %1--- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)   
