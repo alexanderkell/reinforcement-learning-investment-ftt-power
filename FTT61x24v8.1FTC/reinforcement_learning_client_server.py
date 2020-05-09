@@ -85,7 +85,7 @@ class FTTPowerExternalEnvironment(ExternalEnv):
         # Your loop should continuously:
         while True:
             episode_id = self.start_episode()
-            env = Adde rEnvironment(self.action_space, self.observation_space)
+            env = AdderEnvironment(self.action_space, self.observation_space)
             observation = env.reset()
             for _ in range(1000):
                 action = self.get_action(episode_id, observation)

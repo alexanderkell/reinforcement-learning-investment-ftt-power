@@ -198,6 +198,10 @@ function Out = FTT61x24v8(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCD
 %---FTT61v24v8FTC
 %---    New major development with electricity market
 %---    Includes 61 E3ME regions
+%---    Has Gamma values to fit diffusion rates to history
+%---    Has new residual load-duration curves system
+%---    Has new dispatch model calculation (electricity market model)
+%---    v8.1 Has start date 2017 with new IEA data
 
 
 hw = waitbar(0,'Calculation in progress');
@@ -206,6 +210,7 @@ hw = waitbar(0,'Calculation in progress');
 %NET = 24; %Number of Energy Technologies
 NNR = 14; %Number of Natural Resource Types
 NTC = 6; %Number of traded energy commodities
+NLB = 6; %Number of load bands in electricity market
 
 %---Define variables
 %Time is in the 3rd dimension!!! 
@@ -228,7 +233,7 @@ NTC = 6; %Number of traded energy commodities
 %      NET
 
 N = (EndYear-2013)/dt+1;
-HN = 44; %Number of historical data points
+HN = 44; %Number of historical data points (up to 2012 inclusively)
 t = 2013+dt*[0:N-1]';
 tScaling = 5; %Scaling relative to the standard matrix 10/tau*10/t in the excel spreadsheet
               %Note: the scaling should be such that it gives 20*1/tau*1/t
@@ -257,7 +262,7 @@ D = zeros(NTC,NWR,N);     %Total electricity demand (GWh)
 E = zeros(NET,NWR,N);     %Emissions of CO2 during year t (Mt/y)
 HE = zeros(NET,NWR,N+HN-1);     %Emissions & Historical emissions of CO2 during year t (Mt/y)
 G = zeros(NET,NWR,N);    %Generation: Elect produced by technology (GWh)
-HG = zeros(NET,NWR,N+HN-1);    %Generation & Historical: Elect produced by technology (GWh) (-1 is for the repeated year 2013)
+HG = zeros(NET,NWR,N+HN-1);    %Generation & Historical: Elect produced by technology (GWh) (-1 is for the repeated year 2017)
 P = zeros(NTC,NWR,N);    %Carrier Prices by commodity (international) 6 carriers
 T = zeros(NET,NWR,N);     %Taxes and subsidies
 MWKA = zeros(NET,NWR,N);     %Taxes and subsidies
@@ -269,12 +274,25 @@ CarbP = zeros(1,NWR,N); %Price of emitting a ton of carbon ($/tCO2)
 Utot = zeros(1,NWR);    %Total capacity per country (GW)
 dUk = zeros(NET,NWR);     %Exogenous change in capacity
 dSk = zeros(NET,NWR);     %Exogenous change in capacity
+GLB = zeros(NLB,NWR,N);  %Generation per load bands normalised to total demand
+ULB = zeros(NLB,NWR,N);  %Corresponding capacity per load band, normalised
+SLB3 = zeros(NET,NLB,NWR,N);  %Shares of capacity by tech x load bands in electricity market
+SGLB3 = zeros(NET,NLB,NWR,N);  %Shares of generation of tech x load bands in electricity market
+S1LB3 = zeros(NET,NLB,NWR,N);  %Shares of capacity tech x load bands in electricity market
+S2LB3 = zeros(NET,NLB,NWR,N);  %Shares of load bands tech x load bands in electricity market
+CFLB3 = zeros(NET,NLB,NWR,N);  %Capacity factors for each tech x load bands in electricity market
+ULB3 = zeros(NET,NLB,NWR,N);  %Capacities of tech x load bands in electricity market
+GLB3 = zeros(NET,NLB,NWR,N);  %Generation for each tech x load bands in electricity market
 
 %---Format Historical Data
 Ht = HistoricalG(6,4:47)';
 for k=1:NWR
+    %Before 2013 (up to 2012)
     HG(:,k,1:HN) = permute(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2]);
     HE(:,k,1:HN) = permute(HistoricalE(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2])/1000; %Factor 1000 IEA Mt -> Gt
+    %From 2013 to 2017 quarterly
+    HG(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalG(7+(k-1)*27:30+(k-1)*27,47:51)',2013+dt*[1:17]'),[2 3 1]);
+    HE(:,k,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalE(7+(k-1)*27:30+(k-1)*27,47:51)'/1000,2013+dt*[1:17]'),[2 3 1]); %Factor 1000 IEA Mt -> Gt    
 end
 
 %---Format Assumptions Data
@@ -284,8 +302,6 @@ RegionsList = {'1 Belgium','2 Denmark','3 Germany','4 Greece','5 Spain','6 Franc
 FuelsList = {'1- Electricity','2- Uranium','3- Coal','4- Oil','5- Gas','6- Biofuels'};
 %Global Data:
 %Costs
-
-% SALAS: Reads from excel file
 MCosts = CostSheet(7:30,3:22);
 %Variable Sources (logical: 1 = true)
 Svar = MCosts(:,18);
@@ -307,7 +323,7 @@ Gb = (MCosts(:,1)*0+.1)*ones(1,NWR);
 d = 1./MCosts(:,9)*ones(1,NWR);
 dd = zeros(NET,NWR,HN);
 %Starting prices for the first inverse price calculation ($/GJ)
-P(:,:,1) = [.1 4.5 .5 2.5 0 0]'*ones(1,NWR);
+P(:,:,1) = [0.255 5.689 0.4246 3.374 0 0]'*ones(1,NWR);
 %Resource Efficiency
 REfficiency = MCosts(:,14);
 %CSC type (nren Fuel, ren Fuel, Investment,CF) 0,1,2 or 3
@@ -342,12 +358,11 @@ for k = 1:NWR
     %Electicity demand GWh: corresponds to end of year demand
     %Note that D() corresponds to current demand
     %1-U, 2- Oil, 3- Coal, 4- Coal, 5- Biomass, 6- Electricity
-    D(6,k,:) = permute(interp1(year'+dt,DPSheet(256+k-1,3:47)',t),[3 2 1])*1000; %Electricity in TWh->GWh
-    CarbP(1,k,:) = permute(interp1(year'+dt,CO2PSheet(68+k-1,8:52)',t),[3 2 1]); %Carbon Prices
+    D(6,k,:) = permute(interp1(year'+dt,DPSheet(4+k-1,3:47)',t),[3 2 1])*1000; %Electricity in TWh->GWh
     %Non Power demand for fuels PJ
-    D(2,k,:) = permute(interp1(year'+dt,DPSheet(382+k-1,3:47)',t),[3 2 1]); %Oil PJ
-    D(3,k,:) = permute(interp1(year'+dt,DPSheet(319+k-1,3:47)',t),[3 2 1]); %Coal PJ
-    D(4,k,:) = permute(interp1(year'+dt,DPSheet(445+k-1,3:47)',t),[3 2 1]); %Gas PJ
+    D(2,k,:) = permute(interp1(year'+dt,DPSheet(67+k-1,3:47)',t),[3 2 1]); %Oil PJ
+    D(3,k,:) = permute(interp1(year'+dt,DPSheet(130+k-1,3:47)',t),[3 2 1]); %Coal PJ
+    D(4,k,:) = permute(interp1(year'+dt,DPSheet(193+k-1,3:47)',t),[3 2 1]); %Gas PJ
     %Interpolate regulations
     %REGa = RegSheet([5:28]+25*(k-1),2:46)'; REGb = (REGa == -1); REGa(REGb) = NaN;
     %REGc = interp1N(year',REGa,t);
@@ -372,61 +387,31 @@ for k = 1:NWR
     %MWKA(:,k,2:4:end-2) = permute(MWKASheet([5:28]+25*(k-1),4:4+EndYear-2013-1)',[2 3 1]);
     %MWKA(:,k,3:4:end-1) = permute(MWKASheet([5:28]+25*(k-1),4:4+EndYear-2013-1)',[2 3 1]);
     %MWKA(:,k,4:4:end) = permute(MWKASheet([5:28]+25*(k-1),4:4+EndYear-2013-1)',[2 3 1]);
+    CarbP(1,k,:) = permute(interp1(year'+dt,CO2PSheet(68+k-1,8:52)',t),[3 2 1]); %Carbon Prices
+    CarbP(1,k,1:4:end-3) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,2:4:end-2) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,3:4:end-1) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,4:4:end) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
 end
 %Starting values in simulation variables
 %Capacity Factors for flexible systems
-CF(:,:,1) = CapacityFactors(5:5+NET-1,3:3+NWR-1);
+CF0 = CapacityFactors(5:5+NET-1,3:3+NWR-1);
+CF(:,:,1) = CF0;
 for k = 1:NWR
     %Starting Generation (in GWh)
-    G(:,k,1) = HistoricalG(7+(k-1)*27:30+(k-1)*27,48);
+    G(:,k,1) = HG(:,k,HN); %in 2013
     %Subsidy/Taxes schemes
     T(:,k,:) = permute(interp1N(year',SubSheet([5:28]+25*(k-1),2:46)',t),[2 3 1]);
     %Subsidy/Taxes schemes
     FiT(:,k,:) = permute(interp1N(year',FiTSheet([5:28]+25*(k-1),2:46)',t),[2 3 1]);
     %First year cost matrices
     Costs(:,:,k,1) = MCosts(:,1:12);
-    Costs(:,12,k,1) = Gam(:,k);
 end
 
-%Starting Capacities (in GW)
-U(:,:,1) = G(:,:,1)./CF(:,:,1)/8766;
-%Starting Shares
-S(:,:,1) = U(:,:,1)./(ones(NET,1)*sum(U(:,:,1),1));
-
-%Calculation of capacity factors for flexible capacity (below rated values)
-CFflexbase = .85; CFvarbase = .85;
-CFbase(1,:) = (sum(CF(Sbase==1,:,1).*S(Sbase==1,:,1),1)./sum(S(Sbase==1,:,1),1));
-CFvar(1,:) = (sum(CF(Svar==1,:,1).*S(Svar==1,:,1),1)./sum(S(Svar==1,:,1),1));
-CFvar(1,isnan(CFvar(1,:))) = 0;
-CFbase(1,isnan(CFbase(1,:))) = CFflexbase;
-SSbase(1,:) = sum(S(Sbase==1,:,1),1);
-SSvar(1,:) = sum(S(Svar==1,:,1),1);
-SSflex(1,:) = sum(S(Sflex==1,:,1),1);
-%Find average system capacity factors
-CFbar(1,:) = CFflexbase.*(SSflex(1,:)+SSbase(1,:).*CFbase(1,:)/CFflexbase+SSvar(1,:)*(1/CFflexbase-MRIT)-dUovU(1,:))./(1-dDovD(1,:));
-
-%---Recreate historical variables from data (mostly for the purpose of
-%calculating starting W)
-%Historical CF (Note: inaccurate)
-for t = 1:HN
-    HCF(:,:,t) = CF(:,:,1);
-    %Historical U (Note: inaccurate)
-    HU(:,:,t) = HG(:,:,t)./HCF(:,:,t)/8766;
-    %Historical S
-    HS(:,:,t) = HU(:,:,t)./(ones(NET,1)*sum(HU(:,:,t),1));
-    %decommission rate
-    dd(:,:,t) = d;
-end
-HCF(:,:,HN) = CF(:,:,1);
-HU(:,:,HN) = U(:,:,1);
-HS(:,:,HN) = S(:,:,1);
-
-%Starting cumulative investment
-%W(t=0) = sum(Historical decommissions) + sum(Changes in capacity)
-W1 = trapz(1:HN'*ones(1,NET),sum(permute(dd.*HU(:,:,1:HN),[3 1 2]),3))'+trapz(2:HN'*ones(1,NET),sum(permute(HU(:,:,2:HN)-HU(:,:,1:HN-1),[3 1 2]),3))';
-W2 = sum(permute(U(:,:,1),[3 1 2]),3)';
-%W(:,1) = max(W1,W2);
-W(:,1) = CostSheet(7:30,24);
+%Matrix of suitability of technologies by load band
+DD = CostSheet(144:167,3:8);
+%Matrix of top band of technologies (highest band they can operate in)
+DT = CostSheet(144:167,12:17);
 
 %Investment
 I(:,:,1) = 0;
@@ -437,105 +422,210 @@ Costs(:,2,1,1) = 0; %No std at this point
 %Starting levelised costs from starting costs:
 [Costs(:,:,:,1),TPED(:,:,1),CFvar2,P(:,:,1),CSCData] = FTT61x24v8CostCurves(Costs(:,:,:,1),G(:,:,1),P(:,:,1),CSCData,D(:,:,1),REfficiency,CSCType,dt);
 %update the capacity factors for renewables which depend on the cost curves
-CF(Svar==1,:,1) = CFvar2(Svar==1)*ones(1,NWR);
+%CF(Svar==1,:,1) = CFvar2(Svar==1,:);
+%?????????Temp Fix:??????????? WAVE HAS ZERO CF EVERYWHERE
+%CF(CF==0)=0.01;
 
-%First LCOE point
+%First MC point
+[LCOE(:,:,1), dLCOE(:,:,1), TLCOE(:,:,1), dTLCOE(:,:,1), LCOEs(:,:,1), dLCOEs(:,:,1), MC(:,:,1), dMC(:,:,1)] = FTT61x24v8LCOE(Costs(:,:,:,1),r,T(:,:,1),FiT(:,:,1),CF(:,:,1),Unc);
+
+%Starting Capacities (in GW) (for renewables only, for the RLDC)
+U(:,:,1) = G(:,:,1)./(CF(:,:,1)+(CF(:,:,1)==0))/8766;
+%Starting Shares (for renewables only, for the RLDC)
+S(:,:,1) = U(:,:,1)./(ones(NET,1)*sum(U(:,:,1),1));
+
+%Check for missing capacity factors where generation starts
+CF(G(:,:,1)==0 & CF0(:,:,1)~=0) = CF0(G(:,:,1)==0 & CF0(:,:,1)~=0);
+%Grid allocation of production
+for k = 1:NWR
+    %---- Determine the dispatch of capacity:
+    %1--- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)
+    [ULB(:,k,1),GLB(:,k,1),Curt(k,1),Ustor(k,1),CostStor(k,1)] = FTT61x24v8RLDCv2(G(:,k,1),CF(:,k,1),S(:,k,1),k);
+    %2--- Dispatch the capacity of flexible systems based on marginal cost
+    %SGLB3 -> shares of generation, with CFLB3 capacity factors
+    [SLB3(:,:,k,1),CFLB3(:,:,k,1),Shat(:,k,1),Shat2(:,k,1)] = FTT61x24v8DSPCHv2(MC(:,k,1),dMC(:,k,1),GLB(:,k,1),ULB(:,k,1),S(:,k,1),CF(:,k,1),Curt(k,1),DD,DT);
+    %3--- Calculate average capacity factors for all systems according to which load bands they operate in (var are in load band 6)
+%     %Generation by tech x load band
+     GLB3(:,:,k,1) = SLB3(:,:,k,1).*CFLB3(:,:,k,1)*D(6,k,1);
+%     %Capacity by tech x load band
+     ULB3(:,:,k,1) = GLB3(:,:,k,1)./CFLB3(:,:,k,1);
+%     %Capacity factors
+%     CF(:,k,1) = sum(GLB3(:,:,k,1),2)./(sum(ULB3(:,:,k,1),2) + (sum(ULB3(:,:,k,1),2)==0));
+     %Capacity by tech x load band
+     ULB3(:,:,k,1) = SLB3(:,:,k,1)*sum(U(:,k,1));
+     %Generation by tech x load band
+     GLB3(:,:,k,1) = ULB3(:,:,k,1).*CFLB3(:,:,k,1);
+     %Capacity factors
+     CF(:,k,1) = sum(GLB3(:,:,k,1),2)./(sum(ULB3(:,:,k,1),2) + (sum(ULB3(:,:,k,1),2)==0));
+end
+%Update capacity factors of VRE for curtailment
+CF(Svar==1,:,1) = CFvar2(Svar==1,:).*(1-ones(sum(Svar),1)*Curt(:,1)');
+
+%Starting Capacities (in GW)
+U(:,:,1) = G(:,:,1)./(CF(:,:,1) + (CF(:,:,1)==0))/8766;
+%Starting Shares
+S(:,:,1) = U(:,:,1)./(ones(NET,1)*sum(U(:,:,1),1));
+
+%---Recreate historical variables from data (mostly for the purpose of
+%calculating starting W)
+%Historical CF (Note: inaccurate)
+for t = 1:HN
+    HCF(:,:,t) = CF(:,:,1) + (CF(:,:,1)==0);
+    %Historical U (Note: inaccurate)
+    HU(:,:,t) = HG(:,:,t)./(HCF(:,:,t))/8766;
+    %Historical S
+    HS(:,:,t) = HU(:,:,t)./(ones(NET,1)*sum(HU(:,:,t),1));
+    %decommission rate
+    dd(:,:,t) = d;
+end
+
+%Starting cumulative investment
+%W(t=0) = sum(Historical decommissions) + sum(Changes in capacity)
+W1 = trapz(1:HN'*ones(1,NET),sum(permute(dd.*HU(:,:,1:HN),[3 1 2]),3))'+trapz(2:HN'*ones(1,NET),sum(permute(HU(:,:,2:HN)-HU(:,:,1:HN-1),[3 1 2]),3))';
+W2 = sum(permute(U(:,:,1),[3 1 2]),3)';
+%W(:,1) = max(W1,W2);
+W(:,1) = CostSheet(7:30,24);
+
+
+%First LCOE point with dispatched CFs
 [LCOE(:,:,1), dLCOE(:,:,1), TLCOE(:,:,1), dTLCOE(:,:,1), LCOEs(:,:,1), dLCOEs(:,:,1), MC(:,:,1), dMC(:,:,1)] = FTT61x24v8LCOE(Costs(:,:,:,1),r,T(:,:,1),FiT(:,:,1),CF(:,:,1),Unc);
 %With gamma values
 TLCOEg(:,:,1) = TLCOE(:,:,1) + Gam;
 %Price of electricity: averaged LCOE by shares of G
 P(6,:,1) = sum(S(:,:,1).*CF(:,:,1).*(TLCOE(:,:,1).*~isInclT + LCOE(:,:,1).*isInclT))./sum(S(:,:,1).*CF(:,:,1),1);
 
-%Grid allocation of production
-for k = 1:NWR
-    %-- Determine the dispatch of capacity:
-    %1- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)
-    [RLDC(:,k,t),Curt(k,t),Ustor(k,t),CostStor(k,t)] = FTT61x24v8RLDC(Sw,Ss,k,Backup)
-    %2- Dispatch the capacity of flexible systems based on marginal cost
-    SLB(:,:,k,t) = FTT61x24v8DSPCH(MC(:,k,t-1),RLDC(:,k,t),S(:,k,t),DD);
-    %3- Calculate average capacity factors for all systems according to which load bands they operate in (var are in load band 6)
-    CF(:,k,t) = CFLB*SLB;
-    %Reduce the CF of intermittent renewables by the curtailment factor
-    %CF(Svar,k,t) = CF(Svar,k,t)*(1-Curt);
-    %update the capacity factors for renewables which depend on the cost curves
-    CF(Svar==1,k,1) = CFvar2(Svar==1,k)*(1-Curt);
-end
-%Recalculate LCOE with dispatched CFs
-[LCOE(:,:,1), dLCOE(:,:,1), TLCOE(:,:,1), dTLCOE(:,:,1), LCOEs(:,:,1), dLCOEs(:,:,1), MC(:,:,1), dMC(:,:,1)] = FTT61x24v8LCOE(Costs(:,:,:,1),r,T(:,:,1),FiT(:,:,1),CF(:,:,1),Unc);
-
-%Re-calculate starting Capacities (in GW) with new capacity factors
-%U(:,:,1) = G(:,:,1)./CF(:,:,1)/8766;
-%U(isnan(U)|isinf(U))=0;
-%U(:,:,1) = S(:,:,1).*(ones(NET,1)*(D(6,:,1)/8766./sum(S(:,:,1).*CF(:,:,1),1)));
-%Starting Shares
-%S(:,:,1) = U(:,:,1)./(ones(NET,1)*sum(U(:,:,1),1));
 %Emissions first year 
 E(:,:,1) = CO2.*G(:,:,1)/1e9;
-%Starting share limits
-Shat(:,:,1) = (1*(Sflex == 1)+ -1*(Svar == 1))*ones(1,NWR).*(ones(NET,1)*(dUovU(1,:) - UStorage(1,:)) + ...
-    ones(NET,1)*MRIT*(sum(S(Svar==1,:,1),1) - sum(S(Sflex==1,:,1),1)))+S(:,:,1);
-Shat(Sbase == 1,:,1) = 1;
-Shat2(:,:,1) = ones(NET,1)*(sum(S(:,:,1).*CF(:,:,1),1) - .5*dUovU(1,:) + UStorage(1,:)...
-    - sum(S(Sbase==1,:,1),1) - sum(S(Svar==1,:,1),1)) + S(:,:,1);
-Shat2(Sflex == 1,:,1) = 1;
+
 %=======================
 %MODEL DYNAMIC CALCULATION
 clear t
-for t = 2:N
-    if mod(t,5)==0
+%Since costs are 2013 values while start date is in 2017, estimate learning:
+for t = 2:16 %2014 to 2017 incl
+    if mod(t,4)==0
         if ~ishandle(hw)
             break;
         else
             waitbar(t/N);
         end
     end
-    if t == 100
-        Bidon = 0;
+    %Historical Generation (in GWh) and emissions (in GtCO2)
+    G(:,:,t) = HG(:,:,HN+t-1);
+    E(:,:,t) = HE(:,:,HN+t-1);
+    %Capacity factors
+    CF(:,:,t) = CF(:,:,t-1);    
+    %Check for missing capacity factors where generation starts
+     for k = 1:NWR
+         CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
+     end
+    %Capacities (in GW) 
+    U(:,:,t) = G(:,:,t)./(CF(:,:,t)+(CF(:,:,t)==0))/8766;
+    %Shares 
+    S(:,:,t) = U(:,:,t)./(ones(NET,1)*sum(U(:,:,t),1));
+    %Grid allocation of production
+    for k = 1:NWR
+        %---- Determine the dispatch of capacity:
+        %1--- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)
+        [ULB(:,k,t),GLB(:,k,t),Curt(k,t),Ustor(k,t),CostStor(k,t)] = FTT61x24v8RLDCv2(G(:,k,t),CF(:,k,t),S(:,k,t),k);
+        %2--- Dispatch the capacity of flexible systems based on marginal cost
+        %SGLB3 -> shares of generation, with CFLB3 capacity factors
+        [SLB3(:,:,k,t),CFLB3(:,:,k,t),Shat(:,k,t),Shat2(:,k,t)] = FTT61x24v8DSPCHv2(MC(:,k,t-1),dMC(:,k,t-1),GLB(:,k,t),ULB(:,k,t),S(:,k,t),CF(:,k,t-1),Curt(k,t),DD,DT);
+        %3--- Calculate average capacity factors for all systems according to which load bands they operate in (var are in load band 6)
+%         %Generation by tech x load band
+%         GLB3(:,:,k,t) = SGLB3(:,:,k,t).*D(6,k,t);
+%         %Capacity by tech x load band
+%         ULB3(:,:,k,t) = GLB3(:,:,k,t)./CFLB3(:,:,k,t);
+        %Capacity by tech x load band
+        %ULB3(:,:,k,t) = SLB3(:,:,k,t)*sum(U(:,k,t));
+        %Generation by tech x load band
+        %GLB3(:,:,k,t) = ULB3(:,:,k,t).*CFLB3(:,:,k,t);
+        %Capacity factors
+        %CF(:,k,t) = sum(GLB3(:,:,k,t),2)./(sum(ULB3(:,:,k,t),2) + (sum(ULB3(:,:,k,t),2)==0));
+        CF(:,k,t) = sum(SLB3(:,:,k,t).*CFLB3(:,:,k,t),2)./(sum(SLB3(:,:,k,t),2) + (sum(SLB3(:,:,k,t),2)==0));
+    end    %Capacity Investment: I = dU/dt + U*d (only positive changes of capacity + decommissions, in GW/y)
+    I(:,:,t) = (U(:,:,t)-U(:,:,t-1))/dt.*((U(:,:,t)-U(:,:,t-1)) > 0) + U(:,:,t-1).*d;
+    %Cumulative investment (using spillover knowledge mixing matrix B) a global process
+    W(:,t) = W(:,t-1) + sum((B*I(:,:,t)),2)*dt;
+    %Some costs don't change
+    Costs(:,:,:,t) = Costs(:,:,:,t-1);
+    %Carbon costs from emissions (remember: these costs are /unit energy) in $/t * t/GWh / 1000 = $/MWh
+    Costs(:,1,:,t) = permute(CO2(:,1)*CarbP(1,:,t),[1 3 2])/1000;
+    Costs(:,2,1,t) = 0; %No std at this point
+    %Investment cost reductions from learning
+    Costs(:,3,:,t) = Costs(:,3,:,t-1) - permute(Unc(3).*b.*(W(:,t)-W(:,t-1))./(W(:,t)+(W(:,t)==0)).*(W(:,t)>0)*ones(1,NWR),[1 3 2]).*Costs(:,3,:,t-1);
+    Costs(:,4,:,t) = Costs(:,4,:,t-1) - permute(Unc(3).*b.*(W(:,t)-W(:,t-1))./(W(:,t)+(W(:,t)==0)).*(W(:,t)>0)*ones(1,NWR),[1 3 2]).*Costs(:,4,:,t-1); 
+    %Update new average capacity factors for variable renewables given by cost curves and curtailment
+    %CF(Svar==1,:,t) = CF(Svar==1,:,t).*(1-ones(sum(Svar),1)*Curt(:,t)');
+    %Resulting new levelised costs LCOE
+    [LCOE(:,:,t), dLCOE(:,:,t), TLCOE(:,:,t), dTLCOE(:,:,t), LCOEs(:,:,t), dLCOEs(:,:,t), MC(:,:,t), dMC(:,:,t)] = FTT61x24v8LCOE(Costs(:,:,:,t),r,T(:,:,t),FiT(:,:,t),CF(:,:,t),Unc);
+    P(:,:,t) = P(:,:,t-1);
+    %Add gamma values
+    TLCOEg(:,:,t) = TLCOE(:,:,t) + Gam;
+end
+%Check for missing capacity factors where generation starts
+for k = 1:NWR
+    CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
+end
+
+for t = 17:N
+
+% t = year
+
+
+    if mod(t,4)==0
+        if ~ishandle(hw)
+            break;
+        else
+            waitbar(t/N);
+        end
     end
-    %Update share limits:
-%     MES1(:,J) = MWSLt(:,J) + (Sflex(:,J) - Svar(:,J))*(MEDK(J) - MEKS(J) + MRIT(J)*SSvar(J) - SSflex(J))
-    Shat(:,:,t) = (1*(Sflex == 1)+ -1*(Svar == 1))*ones(1,NWR).*(ones(NET,1)*(dUovU(t,:) - UStorage(t,:)) + ...
-        ones(NET,1)*MRIT*(sum(S(Svar==1,:,t-1),1) - sum(S(Sflex==1,:,t-1),1)))+S(:,:,t-1);
-    Shat(Sbase == 1,:,t) = 1;
-    Shat2(:,:,t) = ones(NET,1)*(sum(S(:,:,t-1).*CF(:,:,t-1),1) - .5*dUovU(t,:) + UStorage(t,:) - ...
-        sum(S(Sbase==1,:,t-1),1) - sum(S(Svar==1,:,t-1),1)) + S(:,:,t-1);
-    Shat2(Sflex == 1,:,t) = 1;
-%     MES2(:,J) = MWSLt(:,J) + (CFbar(J) - .5*MEDK(J) + MEKS(J) - SSbase(J) - MRIT(J)*SSvar(J))
     %Whether regulations
-    %WHERE (MEWR >= 0.0 .AND. MEWK > 0.0) isReg = .5 + .5*TANH(1.25*(MEWK - MEWR)/MEWK)
-    isReg = (.5 + .5*tanh(1.25*(U(:,:,t-1)-REG(:,:,t))./U(:,:,t-1))).*(REG(:,:,t) >= 0);
-    isReg(isnan(isReg)) = 0;
+    %isReg = (.5 + .5*tanh(1.25*(U(:,:,t-1)-REG(:,:,t))./U(:,:,t-1))).*(REG(:,:,t) >= 0);
+    isReg = (REG(:,:,t) > 0).*(1 + tanh(2*1.25*(U(:,:,t-1)-REG(:,:,t))./REG(:,:,t)));
+    isReg(REG(:,:,t) == 0) = 1;
 
     for k = 1:NWR
+
+% number of world regions
+% K = range
+
         for i = 1:NET
             %!Components of the constraints matrix Gij
-            %Gijmax(I) = Svar(I,J)*TANH(1.25*(MIN(MES1(I,J),MES2(I,J))-MWSLt(I,J))/dG) + Sflex(I,J) + SBase(I,J)*TANH(1.25*(MES2(I,J) - MWSLt(I,J))/dG)
-            %Gijmin(I) = Svar(I,J) + Sflex(I,J)*TANH(-1.25*(MES1(I,J) - MWSLt(I,J))/dG) + Sbase(I,J)
-            Gmax(i) = Svar(i)*tanh(1.25*((min(Shat(i,k,t),Shat2(i,k,t))-S(i,k,t-1))/Gb(i,k))) + ...
-                Sflex(i) + Sbase(i)*tanh(1.25*((Shat2(i,k,t)-S(i,k,t-1))/Gb(i,k)));
-            Gmin(i) = Svar(i) + Sflex(i)*tanh(1.25*(-(Shat(i,k,t)-S(i,k,t-1))/Gb(i))) + Sbase(i);
+            Gmax(i) = tanh(1.25*(Shat(i,k,t-1)-S(i,k,t-1))/Gb(i,k));
+            Gmin(i) = tanh(1.25*(-(Shat2(i,k,t-1)-S(i,k,t-1))/Gb(i,k)));
+
+
+% i = number of energy Technology
+
+
+% HEREEHEREHERE
+% SALAS
+
+
+
+            
             if (S(i,k,t-1) > 0 & MWKA(i,k,t) < 0)
                 for j = 1:i-1
+
+
+% HALVED THE MATRIX CALCULATION
+
                     if (S(j,k,t-1) > 0 & MWKA(j,k,t) < 0)
-%                         !NOTE: TANH(1.25 X) is a cheap approx way to reproduce the normal CDF, i.e. ERF(X)), 1.414 = sqrt(2)
-%                         dFij = 1.414*SQRT(MTDLt(I,J)*MTDLt(I,J) + MTDLt(K,J)*MTDLt(K,J))
-%                         Fij = 0.5*(1+TANH(1.25*(MTCLt(K,J)-MTCLt(I,J))/dFij))
-%                         !Preferences are either from investor choices (Fij) or enforced by policy (isReg, MEWR)
-%                         !(isReg = 1 if either: MEWR <= MEWK or MWKA > 0, otherwise no REG -> isReg = 0)
-%                         F(I,K) = Fij*(1.0-isReg(I,J))*(1.0-isReg(K,J)) + isReg(K,J)*(1.0-isReg(I,J)) + .5*(isReg(I,J)*isReg(K,J))
-%                         F(K,I) = (1.0-Fij)*(1.0-isReg(K,J))*(1.0-isReg(I,J)) + isReg(I,J)*(1.0-isReg(K,J)) + .5*(isReg(K,J)*isReg(I,J))
-%                         !-------Shares equation!! Core of the model!!------------------ 
-%                         !(see eq 1 in Mercure EP 48 799-811 (2012) )
-%                         dSij(I,K) = MWSLt(I,J)*MWSLt(K,J)*(BMWA(I,J,K)*F(I,K)*Gijmax(I)*Gijmin(K) - BMWA(K,J,I)*F(K,I)*Gijmax(K)*Gijmin(I))*dt/tScaling
-%                         dSij(K,I) = -dSij(I,K)
 %                         !-------Shares equation!! Core of the model!!------------------ 
                         %the use of erft(x) [i.e. tanh(1.25x)] instead of erf(x) is 2x faster with no changes of results
-                        dFij = 1.414*sqrt(dTLCOE(i,k,t-1)*dTLCOE(i,k,t-1)+dTLCOE(j,k,t-1)*dTLCOE(j,k,t-1));
-                        Fij = 0.5*(1+tanh(1.25*(TLCOEg(j,k,t-1)-TLCOEg(i,k,t-1))/dFij));
+
+
+                        dFij = 1.414*sqrt(dTLCOE(i,k,t-1)*dTLCOE(i,k,t-1)+dTLCOE(j,k,t-1)*dTLCOE(j,k,t-1));      
+
+
+% This is important part (decision making function)
+% TAX LCOE
+	                  Fij = 0.5*(1+tanh(1.25*(TLCOEg(j,k,t-1)-TLCOEg(i,k,t-1))/dFij));	
+
+
+
                         FF(i,j,k) = Fij*(1-isReg(i,k))*(1-isReg(j,k)) + isReg(j,k)*(1-isReg(i,k)) + .5*(isReg(i,k)*isReg(j,k));
                         FF(j,i,k) = (1-Fij)*(1-isReg(j,k))*(1-isReg(i,k)) + isReg(i,k)*(1-isReg(j,k)) + .5*(isReg(j,k)*isReg(i,k));
-%                         GG(i,j,k) = 1;
-%                         GG(j,i,k) = 1;
                         GG(i,j,k) = Gmax(i)*Gmin(j);
                         GG(j,i,k) = Gmax(j)*Gmin(i);
                         dSij(i,j,k) = (S(i,k,t-1)^Unc(1)*S(j,k,t-1)*A(i,j,k)*FF(i,j,k)*GG(i,j,k)- ...
@@ -545,61 +635,55 @@ for t = 2:N
                 end
             end
         end
-        % !Add exogenous capacity changes (if any):
+        % !Add exogenous capacity changes (if any) and correct for regulations:
         % !Where MWKA>0 we have exogenously defined shares
-        % Utot = SUM(MWKLt(:,J))
         Utot(k) = sum(U(:,k,t-1),1);
-        % WHERE (MWKA(:,J) >= 0.0) dUk = MWKA(:,J)-MWKLt(:,J)
-        dUk(:,k) = (MWKA(:,k,t)>=0).*(MWKA(:,k,t)-U(:,k,t-1));
-        % !Changes of shares that are exogenous:
+        dUkMK(:,k) = (MWKA(:,k,t)>=0).*(MWKA(:,k,t)-U(:,k,t-1));
+        % Regulations are stated in capacity, not shares. As total capacity
+        % grows, we incorrectly add shares to tech. regulated out e.g. hydro
+        % Where isReg > 0 we must take that out again. % Capacity growth is approximated by the % demand growth
+        dUkREG(:,k) = -(D(6,k,t)-D(6,k,t-1))/D(6,k,t-1)*Utot(k)*S(:,k,t-1).*isReg(:,k);
+        % Total capacity corrections:
+        dUk(:,k) = dUkMK(:,k) + dUkREG(:,k);
+        
+        % Convert capacity corrections to shares:
         % !dSk = dUk/Utot - Uk dUtot/Utot^2  (Chain derivative)
-        % dSk = dUk/Utot - MWKLt(:,J)*dUtot/(Utot*Utot)
         dSk(:,k) = dUk(:,k)/Utot(k) - U(:,k,t-1).*sum(dUk(:,k))/(Utot(k)*Utot(k));
-        % 
-        %!Differential equation: add endog changes dSij and exog changes dSk to lagged shares MWSLt
-        %MEWS(:,J) = MWSLt(:,J) + SUM(dSij,dim=2) + dSk
+        
+        %!Differential equation: add endog changes dSij and corrections dSk to lagged shares MWSLt
         %Shares equation (sum over j in each region)
-        S(:,k,t) = S(:,k,t-1) + permute(sum(dSij,2),[1 3 2]) + dSk;
-
-        %-- Determine the dispatch of capacity:
-        %1- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)
-        [RLDC(:,k,t),Curt(k,t),Ustor(k,t),CostStor(k,t)] = FTT61x24v8RLDC(Sw,Ss,k,Backup)
-        %2- Dispatch the capacity of flexible systems based on marginal cost
-        SLB(:,:,k,t) = FTT61x24v8DSPCH(MC(:,k,t-1),RLDC(:,k,t),S(:,k,t),DD);
-        %3- Calculate average capacity factors for all systems according to which load bands they operate in (var are in load band 6)
-        CF(:,k,t) = CFLB*SLB;
-        %Reduce the CF of intermittent renewables by the curtailment factor
-        %CF(Svar,k,t) = CF(Svar,k,t)*(1-Curt);
-
-%     %Observed capacity factors (ratio of time capacity is actually used)
-%     %Base load capacity factors never change
-%     CF(Sbase == 1,:,t) = CF(Sbase == 1,:,t-1);
-%     %Capacity factors for variable renewables
-%     CF(Svar == 1,:,t) = CF(Svar == 1,:,t-1);
-% 
-%     %Calculation of capacity factors for flexible capacity (below rated values)
-%     CFflexbase = .85; 
-%     CFbase(t,:) = (sum(CF(Sbase==1,:,t).*S(Sbase==1,:,t),1)./sum(S(Sbase==1,:,t),1));
-%     CFvar(t,:) = (sum(CF(Svar==1,:,t).*S(Svar==1,:,t),1)./sum(S(Svar==1,:,t),1));
-%     CFvar(t,isnan(CFvar(t,:))) = 0;
-%     CFbase(t,isnan(CFbase(t,:))) = CFflexbase;
-%     SSbase(t,:) = sum(S(Sbase==1,:,t),1);
-%     SSvar(t,:) = sum(S(Svar==1,:,t),1);
-%     SSflex(t,:) = sum(S(Sflex==1,:,t),1);
-%     %Calculate the average system capacity factor. When renewables or peak demand increase, it goes down,
-%     CFbar(t,:) = CFflexbase.*(SSflex(t,:)+SSbase(t,:).*CFbase(t,:)/CFflexbase+SSvar(t,:)*(1/CFflexbase-MRIT)-dUovU(t,:))./(1-dDovD(t,:));
-%     %Obtain unknown capacity factors for flexible systems, which take up the slack
-%     %We allocate changes in CFbar according to CF values themselves (logistic function)
-%     CFbarA(t,:) = sum(S(:,:,t-1).*CF(:,:,t-1),1);
-%     Num = CF(Sflex==1,:,t-1).*(ones(sum(Sflex==1),1)*CFbarA(t,:)-S(Sflex==1,:,t-1).*CF(Sflex==1,:,t-1));
-%     Denom = ones(sum(Sflex==1),1)*(1./sum(S(Sflex==1,:,t-1).*CF(Sflex==1,:,t-1).*(ones(sum(Sflex==1),1)*CFbarA(t,:)-S(Sflex==1,:,t-1).*CF(Sflex==1,:,t-1)),1));
-%     CF(Sflex==1,:,t) = CF(Sflex==1,:,t-1);% + Num.*Denom.*(ones(sum(Sflex==1),1)*(CFbar(t,:)-CFbar(t-1,:)));
+        S(:,k,t) = S(:,k,t-1) + permute(sum(dSij(:,:,k),2),[1 3 2]) + dSk(:,k);
     end
-
+    for k = 1:NWR
+        %-- Determine the dispatch of capacity:
+        %---- Determine the dispatch of capacity:
+        %1--- Calculate the shape of the Residual Load Duration Curve (RLDC) using Uckerdt et al. (2017)   
+        [ULB(:,k,t),GLB(:,k,t),Curt(k,t),Ustor(k,t),CostStor(k,t)] = FTT61x24v8RLDCv2(G(:,k,t-1),CF(:,k,t-1),S(:,k,t),k);
+        %2--- Dispatch the capacity of flexible systems based on marginal cost
+        %SGLB3 -> shares of generation, with CFLB3 capacity factors
+        [SLB3(:,:,k,t),CFLB3(:,:,k,t),Shat(:,k,t),Shat2(:,k,t)] = FTT61x24v8DSPCHv2(MC(:,k,t-1),dMC(:,k,t-1),GLB(:,k,t),ULB(:,k,t),S(:,k,t),CF(:,k,t-1),Curt(k,t),DD,DT);
+        %3--- Calculate average capacity factors for all systems according to which load bands they operate in (var are in load band 6)
+        %Shares of capacity by tech x load band:
+        %Note that the average capacity factor is 1/sum(ULB(:,k,t)
+%         SLB3(:,:,k,t) = SGLB3(:,:,k,t)./CFLB3(:,:,k,t)/sum(ULB(:,k,t));
+        %Generation by tech x load band
+        GLB3(:,:,k,t) = SLB3(:,:,k,t).*CFLB3(:,:,k,t)*D(6,k,t);
+%         %Capacity by tech x load band
+%         ULB3(:,:,k,t) = GLB3(:,:,k,t)./CFLB3(:,:,k,t);
+        %Shares of tech by tech x load band (NOTE: sum(SLB3,t) = 1)
+        S1LB3(:,:,k,t) = SLB3(:,:,k,t)./(ones(NET,1)*sum(SLB3(:,:,k,t),1));
+        %Shares of load bands by tech x load band (NOTE: sum(S2LB3,2) = 1)
+        S2LB3(:,:,k,t) = SLB3(:,:,k,t)./(sum(SLB3(:,:,k,t),2)*ones(1,NLB) + (sum(SLB3(:,:,k,t),2)==0)*ones(1,NLB));
+        %Capacity factors averaged over all load bands
+        CF(:,k,t) = sum(S2LB3(:,:,k,t).*CFLB3(:,:,k,t),2);
+    end
+    
+    G(:,:,t) = S(:,:,t).*CF(:,:,t).*(ones(NET,1)*(D(6,:,t)./sum(S(:,:,t).*CF(:,:,t),1)));
+    U(:,:,t) = G(:,:,t)./(CF(:,:,t) + (CF(:,:,t) == 0))/8766;
     %Capacity
-    U(:,:,t) = S(:,:,t).*(ones(NET,1)*(D(6,:,t)/8766./sum(S(:,:,t).*CF(:,:,t),1)));
+    %U(:,:,t) = S(:,:,t).*(ones(NET,1)*(D(6,:,t)/8766./sum(S(:,:,t).*CF(:,:,t),1)));
     %Energy Generation by technology (in GWh/y)
-    G(:,:,t) = U(:,:,t).*CF(:,:,t)*8766;
+    %G(:,:,t) = U(:,:,t).*CF(:,:,t)*8766;
     %Capacity Investment: I = dU/dt + U*d (only positive changes of capacity + decommissions, in GW/y)
     I(:,:,t) = (U(:,:,t)-U(:,:,t-1))/dt.*((U(:,:,t)-U(:,:,t-1)) > 0) + U(:,:,t-1).*d;
     %Cumulative investment (using spillover knowledge mixing matrix B) a global process
@@ -610,14 +694,14 @@ for t = 2:N
     Costs(:,:,:,t) = Costs(:,:,:,t-1);
     %Carbon costs from emissions (remember: these costs are /unit energy) in $/t * t/GWh / 1000 = $/MWh
     Costs(:,1,:,t) = permute(CO2(:,1)*CarbP(1,:,t),[1 3 2])/1000;
-    Costs(:,2,1,1) = 0; %No std at this point
+    Costs(:,2,1,t) = 0; %No std at this point
     %Investment cost reductions from learning
     Costs(:,3,:,t) = Costs(:,3,:,t-1) - permute((Unc(3).*b.*(W(:,t)-W(:,t-1))./W(:,t))*ones(1,NWR),[1 3 2]).*Costs(:,3,:,t-1);
     Costs(:,4,:,t) = Costs(:,4,:,t-1) - permute((Unc(3).*b.*(W(:,t)-W(:,t-1))./W(:,t))*ones(1,NWR),[1 3 2]).*Costs(:,4,:,t-1); 
     %Investment costs and fuel costs from depletion and remaining resources
     [Costs(:,:,:,t),TPED(:,:,t),CFvar2(:,:),P(:,:,t),CSCData] = FTT61x24v8CostCurves(Costs(:,:,:,t),G(:,:,t),P(:,:,t-1),CSCData,D(:,:,t),REfficiency,CSCType,dt);
     %Update new average capacity factors for variable renewables given by cost curves and curtailment
-    CF(Svar==1,:,t) = CFvar2(Svar==1,:)*(1-Curt);
+    CF(Svar==1,:,t) = CFvar2(Svar==1,:);
 
     %Resulting new levelised costs LCOE
     [LCOE(:,:,t), dLCOE(:,:,t), TLCOE(:,:,t), dTLCOE(:,:,t), LCOEs(:,:,t), dLCOEs(:,:,t), MC(:,:,t), dMC(:,:,t)] = FTT61x24v8LCOE(Costs(:,:,:,t),r,T(:,:,t),FiT(:,:,t),CF(:,:,t),Unc);
@@ -640,13 +724,13 @@ end
 %----Combine historical and simulated data
 t = 2013 + dt*[0:N-1]';
 %figure(1); clf;
-%Note that the 2013 point repeats:
+%Note that the 2017 point repeats:
 Ht = [Ht ; t(2:end)];
-HG(:,:,45:end) = G(:,:,2:end);
-HE(:,:,45:end) = E(:,:,2:end);
-HCF(:,:,45:end) = CF(:,:,2:end);
-HU(:,:,45:end) = U(:,:,2:end);
-HS(:,:,45:end) = S(:,:,2:end);
+HG(:,:,HN+1:end) = G(:,:,2:end);
+HE(:,:,HN+1:end) = E(:,:,2:end);
+HCF(:,:,HN+1:end) = CF(:,:,2:end);
+HU(:,:,HN+1:end) = U(:,:,2:end);
+HS(:,:,HN+1:end) = S(:,:,2:end);
 %Remove NaN's that originate from no data in historical G
 HS(isnan(HS)) = 0;
 
@@ -686,7 +770,9 @@ Out.TLCOE = permute(TLCOE,[3 1 2]);
 Out.Names.TLCOE = {'Levelised Cost inc Taxes ( 2013USD/MWh )'};
 Out.LCOEs = permute(LCOEs,[3 1 2]);
 Out.Names.LCOEs = {'Levelised Cost excl CO2 price ( 2013USD/MWh )'};
-Out.W = permute(W,[2 1 3]); %Note: W is global
+Out.MC = permute(MC,[3 1 2]);
+Out.Names.MC = {'Marginal cost incl. CO2 price ( 2013USD/MWh )'};
+Out.W = permute(W,[2 1]); %Note: W is global
 Out.Names.W = {'Cumulative Capacity ( GW )'};
 Out.I = permute(I,[3 1 2]);
 Out.Names.I = {'Capacity Investment ( GW/year )'};
@@ -708,21 +794,40 @@ Out.Shat = permute(Shat,[3 1 2]);
 Out.Names.Shat = {'Share Limits 1'};
 Out.Shat2 = permute(Shat2,[3 1 2]);
 Out.Names.Shat2 = {'Share Limits 2'};
-Out.CFbar = CFbar;
-Out.Names.CFbar = {'Opt Average CF'};
-Out.CFbarA = CFbarA;
-Out.Names.CFbarA = {'Average CF'};
-Out.CFvar = CFvar;
-Out.Names.CFvar = {'CF Var'};
-Out.CFbase = CFbase;
-Out.Names.CFbase = {'CF Baseload'};
-Out.SSbase = SSbase;
-Out.Names.SSbase = {'Shares Baseload'};
-Out.SSvar = SSvar;
-Out.Names.SSvar = {'Shares Var'};
-Out.SSflex = SSflex;
-Out.Names.SSflex = {'Shares Flex'};
+Out.Names.ULB = {'Shares of capacity by load band (sum = 1 at CF = 100%)'};
+Out.ULB = permute(ULB,[3 1 2]);
+Out.Names.GLB = {'Shares of generation by load band'};
+Out.GLB = permute(GLB,[3 1 2]);
+Out.Names.SLB1 = {'Shares of generation for load band 1'};
+Out.SLB1 = permute(S1LB3(:,1,:,:),[4 1 3 2]);
+Out.Names.SLB2 = {'Shares of generation for load band 2'};
+Out.SLB2 = permute(S1LB3(:,2,:,:),[4 1 3 2]);
+Out.Names.SLB3 = {'Shares of generation for load band 3'};
+Out.SLB3 = permute(S1LB3(:,3,:,:),[4 1 3 2]);
+Out.Names.SLB4 = {'Shares of generation for load band 4'};
+Out.SLB4 = permute(S1LB3(:,4,:,:),[4 1 3 2]);
+Out.Names.SLB5 = {'Shares of generation for load band 5'};
+Out.SLB5 = permute(S1LB3(:,5,:,:),[4 1 3 2]);
+Out.Names.SLB6 = {'Shares of generation for load band 6'};
+Out.SLB6 = permute(S1LB3(:,6,:,:),[4 1 3 2]);
 
-%Out.CO2 = CO2;
+Out.Names.GLB1 = {'generation for load band 1 (GWh/y)'};
+Out.GLB1 = permute(GLB3(:,1,:,:),[4 1 3 2]);
+Out.Names.GLB2 = {'generation for load band 2 (GWh/y)'};
+Out.GLB2 = permute(GLB3(:,2,:,:),[4 1 3 2]);
+Out.Names.GLB3 = {'generation for load band 3 (GWh/y)'};
+Out.GLB3 = permute(GLB3(:,3,:,:),[4 1 3 2]);
+Out.Names.GLB4 = {'generation for load band 4 (GWh/y)'};
+Out.GLB4 = permute(GLB3(:,4,:,:),[4 1 3 2]);
+Out.Names.GLB5 = {'generation for load band 5 (GWh/y)'};
+Out.GLB5 = permute(GLB3(:,5,:,:),[4 1 3 2]);
+Out.Names.GLB6 = {'generation for load band 6 (GWh/y)'};
+Out.GLB6 = permute(GLB3(:,6,:,:),[4 1 3 2]);
+Out.Names.Curt = {'Curtailment of renewables'};
+Out.Curt = permute(Curt,[2 1]);
+Out.Names.Ustor = {'Storage'};
+Out.Ustor = permute(Ustor,[2 1]);
+Out.Names.CostStor = {'Storage Costs'};
+Out.CostStor = permute(CostStor,[2 1]);
 
 end
