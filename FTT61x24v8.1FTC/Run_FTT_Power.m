@@ -28,7 +28,8 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
     handles.CSCDataEdit = 'FTT61x24v8_CSCurvesHybrid.xlsx';
     
     
-    handles.NWR = 61;
+%     handles.NWR = 61;
+    handles.NWR = 2;
     handles.NET = 24;
 %     handles.NWR = input_NWR;
 %     handles.NWR = 12;
@@ -77,11 +78,13 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
     U_cum = sum(sum(sum(output.U)));
     E_cum = sum(sum(sum(output.E)));
     CF_cum = sum(sum(sum(output.CF)));
-    LCOE_cum = sum(sum(sum(output.LCOE)));
-    TLCOE_cum = sum(sum(sum(output.TLCOE)));
+%     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
+    LCOE_cum = nanmean(output.LCOE,'all');
+%     writematrix(output.LCOE,'LCOE.csv')
+    TLCOE_cum = nanmean(output.TLCOE,'all');
     W_cum = sum(sum(sum(output.W)));
     I_cum = sum(sum(sum(output.I)));
-    P_cum = sum(sum(sum(output.P)));
+    P_cum = nanmean(output.P,'all');
     Fcosts_cum = sum(sum(sum(output.FCosts)));
     CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
     % S_lim_cum = 

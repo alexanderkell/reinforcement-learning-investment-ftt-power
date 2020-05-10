@@ -29,7 +29,8 @@ function [LCOE, dLCOE, TLCOE, dTLCOE, LCOEs, dLCOEs, MC, dMC] = FTT21x24v8LCOE(C
 %---Output LCOE is a matrix of levelised costs NETxNWR
 %---dLCOE is the statistical variation of the cost
 
-NWR = size(Costs,3);
+% NWR = size(Costs,3);
+NWR = 2;
 NET = size(Costs,1);
 LCOE = zeros(NET,NWR);
 TLCOE = zeros(NET,NWR); %LCOEs depend on the load band
