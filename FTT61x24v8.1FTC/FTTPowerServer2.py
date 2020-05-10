@@ -84,36 +84,19 @@ if __name__ == "__main__":
             env='srv',
             config=dict(
                 connector_config, **{
-                    # "sample_batch_size": 50,
-                    # "train_batch_size": 128,
-                    "evaluation_num_episodes": 1,
-                    # "sgd_stepsize": tune.grid_search([0.01, 0.001, 0.0001])
-                    "sample_batch_size": 10,
-                    "train_batch_size": 128,
-                    # "horizon": 25,
-                    # "exploration_config": {
-                    #     # The Exploration class to use.
-                    #     "type": "EpsilonGreedy",
-                    #     # Config for the Exploration class' constructor:
-                    #     "initial_epsilon": 1.0,
-                    #     "final_epsilon": 0.1,
-                    #     # "epsilon_timesteps": 10000,  # Timesteps over which to anneal epsilon.
-                    #
-                    #     # For soft_q, use:
-                    #     # "exploration_config" = {
-                    #     #   "type": "SoftQ"
-                    #     #   "te
+                    "sample_batch_size": 1000,
+                    "train_batch_size": 4000,
                 }))
     else:
         raise ValueError("--run must be DQN or PPO")
 
     checkpoint_path = CHECKPOINT_FILE.format(args.run)
 
-    # Attempt to restore from checkpoint if possible.
-    if os.path.exists(checkpoint_path):
-        checkpoint_path = open(checkpoint_path).read()
-        print("Restoring from checkpoint path", checkpoint_path)
-        trainer.restore(checkpoint_path)
+    # # Attempt to restore from checkpoint if possible.
+    # if os.path.exists(checkpoint_path):
+    #     checkpoint_path = open(checkpoint_path).read()
+    #     print("Restoring from checkpoint path", checkpoint_path)
+    #     trainer.restore(checkpoint_path)`
 
     # Serving and training loop
     while True:
@@ -122,4 +105,3 @@ if __name__ == "__main__":
         print("Last checkpoint", checkpoint)
         with open(checkpoint_path, "w") as f:
             f.write(checkpoint)
-

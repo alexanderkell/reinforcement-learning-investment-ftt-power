@@ -103,12 +103,12 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         
         G_cum = sum(sum(sum(output.G)));
         U_cum = sum(sum(sum(output.U)));
-        E_cum = mean(output.E,'all');
+        E_cum = sum(sum(sum(output.E)));
         CF_cum = sum(sum(sum(output.CF)));
     %     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
-        LCOE_mean = nanmean(output.LCOE,'all');
+        LCOE_cum = nanmean(output.LCOE,'all')
         writematrix(output.LCOE,'LCOE.csv')
-        TLCOE_cum = nanmean(output.TLCOE,'all');
+        TLCOE_cum = nanmean(output.TLCOE,'all')
         W_cum = sum(sum(sum(output.W)));
         I_cum = sum(sum(sum(output.I)));
         P_cum = nanmean(output.P,'all');
@@ -119,13 +119,8 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
         % handles
 
-        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_mean, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum]
-%         reward = LCOE_mean
-
-        1000*E_cum;
-        LCOE_mean/1000;
-        reward = -((1000*E_cum) + (LCOE_mean/1000))
-        client.log_returns(eid, reward)
+        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum]
+        client.log_returns(eid, LCOE_cum)
         client.end_episode(eid, observations)
     end
 end
