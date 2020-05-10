@@ -89,22 +89,25 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     PatchAllData_Callback(handles)
 
    
-        CostSheet = CalcAll_Callback(handles, client, eid, obs);
+   [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles);
+    while true
+        eid = client.start_episode();
 
+        obs = env.reset();
         if ~isempty(CostSheet)
        %Simulation here!
             clear handles.Scenario(k);
 %     handles.Scenario(k) = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
-            output_simulation = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
+            output = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
         end
         
         G_cum = sum(sum(sum(output.G)));
         U_cum = sum(sum(sum(output.U)));
-        E_cum = sum(sum(sum(output.E)));
+        E_cum = mean(output.E,'all');
         CF_cum = sum(sum(sum(output.CF)));
     %     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
-        LCOE_cum = nanmean(output.LCOE,'all');
-    %     writematrix(output.LCOE,'LCOE.csv')
+        LCOE_mean = nanmean(output.LCOE,'all');
+        writematrix(output.LCOE,'LCOE.csv')
         TLCOE_cum = nanmean(output.TLCOE,'all');
         W_cum = sum(sum(sum(output.W)));
         I_cum = sum(sum(sum(output.I)));
@@ -116,8 +119,13 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
         % handles
 
-        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
-        client.log_returns(eid, LCOE_cum)
+        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_mean, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum]
+%         reward = LCOE_mean
+
+        1000*E_cum;
+        LCOE_mean/1000;
+        reward = -((1000*E_cum) + (LCOE_mean/1000))
+        client.log_returns(eid, reward)
         client.end_episode(eid, observations)
     end
 end
@@ -163,7 +171,7 @@ end
 
 %---
 
-function CostSheet = CalcAll_Callback(handles, client, eid, obs)
+function [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles)
 %---Function that calculates all baseline+scenarios
 % kk = str2num(get(handles.MaxScenarioEdit,'string'))+1;
 % if ~isempty(handles.HistoricalG)
