@@ -633,7 +633,7 @@ for t = 17:N
             %!Components of the constraints matrix Gij
             Gmax(i) = tanh(1.25*(Shat(i,k,t-1)-S(i,k,t-1))/Gb(i,k));
             Gmin(i) = tanh(1.25*(-(Shat2(i,k,t-1)-S(i,k,t-1))/Gb(i,k)));
-            [dSji, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, action, counter);
+            [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, action, counter);
         end
         % !Add exogenous capacity changes (if any) and correct for regulations:
         % !Where MWKA>0 we have exogenously defined shares
@@ -858,9 +858,9 @@ function [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i
 %                 dSij(j,i,k) = -dSij(i,j,k);
                 
 %                 action = client.get_action(eid, obs);
-                dSij = action(counter);
+                dSij(i,j,k) = action(counter);
+                dSij(j,i,k) = -dSij(i,j,k);
                 counter = counter + 1;
-%                 dSij = 0.4;
             end
         end
     end
