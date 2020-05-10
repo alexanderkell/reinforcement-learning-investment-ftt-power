@@ -13,7 +13,7 @@ from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
-from gym.spaces import Box, Discrete
+from gym.spaces import Box, Discrete, MultiDiscrete
 from ray.rllib.utils.policy_server import PolicyServer
 
 from ray.tune.registry import register_env
@@ -36,24 +36,25 @@ class AdderServing(gym.Env):
 
     def run(self):
         print("Starting policy server at {}:{}".format(SERVER_ADDRESS, SERVER_PORT))
-        server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT+1)
+        server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT)
         server.serve_forever()
 
 
 if __name__ == "__main__":
     # SERVER_ADDRESS = "localhost"
     SERVER_ADDRESS = "127.0.0.1"
-    SERVER_PORT = 9900
+    SERVER_PORT = 9910
     args = parser.parse_args()
+    args.run = "PPO"
     ray.init()
-    action_space = Discrete(100)
-    observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
+    # action_space = MultiDiscrete(50)
+    action_space = Box(low=0, high=1, shape=(326,), dtype=np.float)
+    observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
     connector_config = {
         # Use the connector server to generate experiences.
         "input": (
-            lambda ioctx: PolicyServerInput( \
-                ioctx, SERVER_ADDRESS, SERVER_PORT)
+            lambda ioctx: PolicyServerInput(ioctx, SERVER_ADDRESS, SERVER_PORT)
         ),
         # Use a single worker process to run the server.
         "num_workers": 0,

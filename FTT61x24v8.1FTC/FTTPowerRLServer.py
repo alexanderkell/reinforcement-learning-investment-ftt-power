@@ -24,7 +24,7 @@ import ray.tune as tune
 from ray.tune.registry import register_env
 
 SERVER_ADDRESS = "127.0.0.1"
-SERVER_PORT = 9902
+SERVER_PORT = 9905
 CHECKPOINT_FILE = "last_checkpoint_{}.out"
 
 parser = argparse.ArgumentParser()
@@ -38,7 +38,7 @@ class AdderServing(ExternalEnv):
 
     def run(self):
         print("Starting policy server at {}:{}".format(SERVER_ADDRESS, SERVER_PORT))
-        server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT)
+        server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT+1)
         server.serve_forever()
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ __email__ = "alexander@kell.es"
 
 
 SERVER_ADDRESS = "localhost"
-SERVER_PORT = 9900
+SERVER_PORT = 9910
 CHECKPOINT_FILE = "last_checkpoint.out"
 
 
@@ -49,30 +49,32 @@ class AdderServing(ExternalEnv):
 class FTTPowerEnvironment(gym.Env):
 
     def __init__(self, action_space, observation_space):
-        action_space = Discrete(100)
+        action_space = Box(low=0, high=1, shape=(326,), dtype=np.float)
 
-        observation_space = Box(low=-2000, high=2000, shape=(2,), dtype=np.float)
+        observation_space = Box(low=-2000, high=2000, shape=(11,), dtype=np.float)
 
         self.action_space = action_space
         self.observation_space = observation_space
 
     def reset(self):
         # return np.array(0).reshape(1,)
-        return np.array([0, 0]).reshape(2,)
+        return np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape(11,)
 
     def step(self, action):
         # reward = action[0] + action[1]
         print("-------HI--------")
-        reward = action * 2
+        reward = action[0] * 2
         # print(reward)
-        obs = reward
-        if reward >= 50:
-            done = True
-        else:
-            done = False
+        obs = [reward]*11
+
+        done = True
+        # if reward >= 50:
+        #     done = True
+        # else:
+        #     done = False
 
         # return np.array([obs, action[0], action[1]]).reshape(3,), reward, done, {}
-        return np.array([obs, action]).reshape(2,), reward, done, {}
+        return np.array(obs).reshape(2,), reward, done, {}
 
 
 class FTTPowerExternalEnvironment(ExternalEnv):

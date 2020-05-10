@@ -3,21 +3,37 @@
 % action = "Hello";
 
 function observations = Run_FTT_Power(action, input_NWR, input_NET)
-
+% while true
 % %     Initialise reinforcment learning client
     import ray.rllib.env.policy_client.*
     import gym.*
-    client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9900');
-    eid = client.start_episode();
-    obs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    import numpy.*
+    
+    import reinforcement_learning_client_server.*
+
+    py.importlib.import_module('reinforcement_learning_client_server');
+
+
+
+    disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
+    env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
+
+
+    client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9910');
+
+
+
+%     eid = client.start_episode();
+%     obs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+%     obs = py.numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape(11,-1)
 
 %     client = "holder";
 %     eid = "holder";
 %     obs = "holder";
 
 % Holder for action
-    action=1;
-    
+%     action=1;
+
     k = 1;
     u = 1;
 
@@ -26,8 +42,8 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
     handles.CostsEdit = 'Assump_FTTpower_61.xlsx';
     handles.HistoricalEdit = 'FTT61x24v8.1_HistoricalData2017.xls';
     handles.CSCDataEdit = 'FTT61x24v8_CSCurvesHybrid.xlsx';
-    
-    
+
+
 %     handles.NWR = 61;
     handles.NWR = 2;
     handles.NET = 24;
@@ -72,27 +88,41 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
     end
 %     PatchAllData_Callback(handles)
 
-    output = CalcAll_Callback(handles, action, client, eid, obs);
+   
+   [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles);
+    while true
+        eid = client.start_episode();
 
-    G_cum = sum(sum(sum(output.G)));
-    U_cum = sum(sum(sum(output.U)));
-    E_cum = sum(sum(sum(output.E)));
-    CF_cum = sum(sum(sum(output.CF)));
-%     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
-    LCOE_cum = nanmean(output.LCOE,'all');
-%     writematrix(output.LCOE,'LCOE.csv')
-    TLCOE_cum = nanmean(output.TLCOE,'all');
-    W_cum = sum(sum(sum(output.W)));
-    I_cum = sum(sum(sum(output.I)));
-    P_cum = nanmean(output.P,'all');
-    Fcosts_cum = sum(sum(sum(output.FCosts)));
-    CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
-    % S_lim_cum = 
-    % S_lim2_cum = 
+        obs = env.reset();
+        if ~isempty(CostSheet)
+       %Simulation here!
+            clear handles.Scenario(k);
+%     handles.Scenario(k) = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
+            output = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
+        end
+        
+        G_cum = sum(sum(sum(output.G)));
+        U_cum = sum(sum(sum(output.U)));
+        E_cum = sum(sum(sum(output.E)));
+        CF_cum = sum(sum(sum(output.CF)));
+    %     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
+        LCOE_cum = nanmean(output.LCOE,'all');
+    %     writematrix(output.LCOE,'LCOE.csv')
+        TLCOE_cum = nanmean(output.TLCOE,'all');
+        W_cum = sum(sum(sum(output.W)));
+        I_cum = sum(sum(sum(output.I)));
+        P_cum = nanmean(output.P,'all');
+        Fcosts_cum = sum(sum(sum(output.FCosts)));
+        CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
+        % S_lim_cum = 
+        % S_lim2_cum = 
 
-    % handles
+        % handles
 
-    observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
+        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
+        client.log_returns(eid, LCOE_cum)
+        client.end_episode(eid, observations)
+    end
 end
 
 function [Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet] = ReadData(AssumptionsFileName,HistoricalFileName,CSCDataFileName,k,u)
@@ -128,6 +158,7 @@ else
     CO2PSheet = '';
     MWKASheet = '';
 end
+
 end
 
 
@@ -135,7 +166,7 @@ end
 
 %---
 
-function output_simulation = CalcAll_Callback(handles, action, client, eid, obs)
+function [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles)
 %---Function that calculates all baseline+scenarios
 % kk = str2num(get(handles.MaxScenarioEdit,'string'))+1;
 % if ~isempty(handles.HistoricalG)
@@ -168,12 +199,7 @@ CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
     HistoricalE = handles.HistoricalE;
     CapacityFactors = handles.CapacityFactors;
     CSCData = handles.CSCData;    
-if ~isempty(CostSheet)
-    %Simulation here!
-    clear handles.Scenario(k);
-%     handles.Scenario(k) = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
-    output_simulation = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
-end
+
 end
 %     set(handles.Slots(k),'BackgroundColor',[1 1 0]);
 %     end
