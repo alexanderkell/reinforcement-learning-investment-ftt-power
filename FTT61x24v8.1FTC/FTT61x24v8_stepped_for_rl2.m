@@ -204,7 +204,7 @@ function Out = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,Capa
 %---    v8.1 Has start date 2017 with new IEA data
 
 
-hw = waitbar(0,'Calculation in progress');
+% hw = waitbar(0,'Calculation in progress');
 
 %---Classification dimensions
 %NET = 24; %Number of Energy Technologies
@@ -535,13 +535,13 @@ E(:,:,1) = CO2.*G(:,:,1)/1e9;
 clear t
 %Since costs are 2013 values while start date is in 2017, estimate learning:
 for t = 2:16 %2014 to 2017 incl
-    if mod(t,4)==0
-        if ~ishandle(hw)
-            break;
-        else
-            waitbar(t/N);
-        end
-    end
+%     if mod(t,4)==0
+%         if ~ishandle(hw)
+%             break;
+%         else
+%             waitbar(t/N);
+%         end
+%     end
     %Historical Generation (in GWh) and emissions (in GtCO2)
     G(:,:,t) = HG(:,:,HN+t-1);
     E(:,:,t) = HE(:,:,HN+t-1);
@@ -608,13 +608,13 @@ end
 
 % AJMK: Loop through each year
 for t = 17:N
-    if mod(t,4)==0
-        if ~ishandle(hw)
-            break;
-        else
-            waitbar(t/N);
-        end
-    end
+%     if mod(t,4)==0
+%         if ~ishandle(hw)
+%             break;
+%         else
+% %             waitbar(t/N);
+%         end
+%     end
     %Whether regulations
     %isReg = (.5 + .5*tanh(1.25*(U(:,:,t-1)-REG(:,:,t))./U(:,:,t-1))).*(REG(:,:,t) >= 0);
     isReg = (REG(:,:,t) > 0).*(1 + tanh(2*1.25*(U(:,:,t-1)-REG(:,:,t))./REG(:,:,t)));
@@ -717,9 +717,9 @@ for t = 17:N
     %isInclT indicates whether FiTs are paid for by the grid or not
     P(6,:,t) = sum(S(:,:,t).*CF(:,:,t).*(TLCOE(:,:,t).*~isInclT + LCOE(:,:,t).*isInclT))./sum(S(:,:,t).*CF(:,:,t),1); %add cost of storage here?
 end
-if ishandle(hw)
-    close(hw);
-end
+% if ishandle(hw)
+%     close(hw);
+% end
 
 
 %=========================

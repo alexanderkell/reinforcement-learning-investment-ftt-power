@@ -57,20 +57,20 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
     HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
     CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
     if exist(HistoricalFileName)
-        hw = waitbar(0,'Reading input data from Excel');
-        waitbar(1/6);
+%         hw = waitbar(0,'Reading input data from Excel');
+%         waitbar(1/6);
         % read cost data 
         CostSheet = xlsread(AssumptionsFileName,strcat('Costs'));
         % read historical and resource data 
-        waitbar(2/6);
+%         waitbar(2/6);
         HistoricalG = xlsread(HistoricalFileName,'HistoricalG');
-        waitbar(3/6);
+%         waitbar(3/6);
         HistoricalE = xlsread(HistoricalFileName,'HistoricalE');
-        waitbar(4/6);
+%         waitbar(4/6);
         CapacityFactors = xlsread(HistoricalFileName,'CapacityFactors');
-        waitbar(5/6);
+%         waitbar(5/6);
         CSCData = xlsread(CSCDataFileName);
-        close(hw);
+%         close(hw);
         handles.CostSheet = CostSheet;
         handles.HistoricalG = HistoricalG;
         handles.HistoricalE = HistoricalE;
@@ -130,24 +130,24 @@ function [Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet] = ReadData
 %Filenames is a cell of strings
 
 if (exist(AssumptionsFileName)&exist(HistoricalFileName)&exist(CSCDataFileName))
-    hw = waitbar(0,'Reading input data from Excel');
+%     hw = waitbar(0,'Reading input data from Excel');
     % select uncertainty assumptions
     UncSheet = xlsread(AssumptionsFileName,'Costs','AH5:BQ63');
     Unc = UncSheet(:,u);
     %read policy data 
-    waitbar(1/6);
+%     waitbar(1/6);
     SubSheet = xlsread(AssumptionsFileName,strcat('Sub',num2str(k-1)));
-    waitbar(2/6);
+%     waitbar(2/6);
     FiTSheet = xlsread(AssumptionsFileName,strcat('FiT',num2str(k-1)));
-    waitbar(3/6);
+%     waitbar(3/6);
     RegSheet = xlsread(AssumptionsFileName,strcat('Reg',num2str(k-1)));
-    waitbar(4/6);
+%     waitbar(4/6);
     DPSheet = xlsread(AssumptionsFileName,strcat('DP',num2str(k-1)));
-    waitbar(5/6);
+%     waitbar(5/6);
     CO2PSheet = xlsread(AssumptionsFileName,strcat('CO2P',num2str(k-1)));
-    waitbar(6/6);
+%     waitbar(6/6);
     MWKASheet = xlsread(AssumptionsFileName,strcat('MWKA',num2str(k-1)));
-    close(hw);
+%     close(hw);
 else
     errordlg('Assumptions files not found');
     %read policy data 
@@ -253,20 +253,20 @@ AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
 HistoricalFileName = strcat(handles.PathField,'string',handles.HistoricalEdit);
 CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
 if exist(HistoricalFileName)
-    hw = waitbar(0,'Reading input data from Excel');
-    waitbar(1/6);
+%     hw = waitbar(0,'Reading input data from Excel');
+%     waitbar(1/6);
     % read cost data 
     CostSheet = xlsread(AssumptionsFileName,strcat('Costs'));
     % read historical and resource data 
-    waitbar(2/6);
+%     waitbar(2/6);
     HistoricalG = xlsread(HistoricalFileName,'HistoricalG');
-    waitbar(3/6);
+%     waitbar(3/6);
     HistoricalE = xlsread(HistoricalFileName,'HistoricalE');
-    waitbar(4/6);
+%     waitbar(4/6);
     CapacityFactors = xlsread(HistoricalFileName,'CapacityFactors');
-    waitbar(5/6);
+%     waitbar(5/6);
     CSCData = xlsread(CSCDataFileName);
-    close(hw);
+%     close(hw);
     handles.CostSheet = CostSheet;
     handles.HistoricalG = HistoricalG;
     handles.HistoricalE = HistoricalE;
