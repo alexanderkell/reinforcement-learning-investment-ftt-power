@@ -235,7 +235,7 @@ NLB = 6; %Number of load bands in electricity market
 NWR = 2;
 
 % N = (EndYear-2013)/dt+1;
-N = (EndYear-2013)/dt;
+REG(:,k,1:4:end)
 HN = 44; %Number of historical data points (up to 2012 inclusively)
 t = 2013+dt*[0:N-1]';
 tScaling = 5; %Scaling relative to the standard matrix 10/tau*10/t in the excel spreadsheet
@@ -416,11 +416,10 @@ for k = 1:NWR
     %MWKA(:,k,3:4:end-1) = permute(MWKASheet([5:28]+25*(k-1),4:4+EndYear-2013-1)',[2 3 1]);
     %MWKA(:,k,4:4:end) = permute(MWKASheet([5:28]+25*(k-1),4:4+EndYear-2013-1)',[2 3 1]);
     CarbP(1,k,:) = permute(interp1(year'+dt,CO2PSheet(68+k-1,8:52)',t),[3 2 1]); %Carbon Prices
-%     CarbP(1,k,1:4:end-3) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
-%     CarbP(1,k,2:4:end-2) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
-%     CarbP(1,k,3:4:end-1) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
-%     CarbP(1,k,4:4:end) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
-    CarbP(1,k,1:end) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,1:4:end-3) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,2:4:end-2) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,3:4:end-1) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
+    CarbP(1,k,4:4:end) = permute(CO2PSheet(67+k,15:15+EndYear-2013-1),[1 3 2]);
 end
 %Starting values in simulation variables
 %Capacity Factors for flexible systems
