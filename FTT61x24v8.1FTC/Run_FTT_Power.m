@@ -52,7 +52,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     handles.NET = input_NET;
 %     handles.dtEdit = '0.25';
     handles.dtEdit = '0.25';
-    handles.EndEdit = '2050';
+    handles.EndEdit = '2035';
 
     AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
     HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
