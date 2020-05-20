@@ -101,7 +101,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     handles.Scenario(k) = FTT61x24v8f(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear);
             output = FTT61x24v8_stepped_for_rl2(CostSheet,HistoricalG,HistoricalE,CapacityFactors,CSCData,Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet,dt,NET,NWR,EndYear, client, eid, obs);
         end
-        
+%         writematrix(output,'output.csv')
         G_cum = sum(sum(sum(output.G)));
         U_cum = sum(sum(sum(output.U)));
         E_cum = mean(output.E,'all');
