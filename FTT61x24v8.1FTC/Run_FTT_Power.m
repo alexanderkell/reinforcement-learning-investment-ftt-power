@@ -107,9 +107,9 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         E_cum = mean(output.E,'all');
         CF_cum = sum(sum(sum(output.CF)));
     %     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
-        LCOE_cum = nanmean(output.LCOE,'all')
-        writematrix(output.LCOE,'LCOE.csv')
-        TLCOE_cum = nanmean(output.TLCOE,'all')
+        LCOE_cum = nanmean(output.LCOE,'all');
+%         writematrix(output.LCOE,'LCOE.csv')
+        TLCOE_cum = nanmean(output.TLCOE,'all');
         W_cum = sum(sum(sum(output.W)));
         I_cum = sum(sum(sum(output.I)));
         P_cum = nanmean(output.P,'all');

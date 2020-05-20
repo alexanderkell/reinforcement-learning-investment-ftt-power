@@ -606,8 +606,15 @@ for k = 1:NWR
     CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
 end
 
+
 % AJMK: Loop through each year
 for t = 17:N
+    counter = 1;
+    if t == 17 %|| t == ceil((N-17)/2)
+        counter = counter + 1;
+        action = client.get_action(eid, obs);
+        action = double(action);
+    end
 %     if mod(t,4)==0
 %         if ~ishandle(hw)
 %             break;
@@ -619,10 +626,11 @@ for t = 17:N
     %isReg = (.5 + .5*tanh(1.25*(U(:,:,t-1)-REG(:,:,t))./U(:,:,t-1))).*(REG(:,:,t) >= 0);
     isReg = (REG(:,:,t) > 0).*(1 + tanh(2*1.25*(U(:,:,t-1)-REG(:,:,t))./REG(:,:,t)));
     isReg(REG(:,:,t) == 0) = 1;
-    
-    counter = 1;
-    action = client.get_action(eid, obs);
-    action = double(action);
+
+%     For making decisions at every time step     
+%     counter = 1;
+%     action = client.get_action(eid, obs);
+%     action = double(action);
     % Loop through each world region
     for k = 1:NWR
 %     for k = [7, 15] % Ireland and UK only
@@ -633,6 +641,7 @@ for t = 17:N
             %!Components of the constraints matrix Gij
             Gmax(i) = tanh(1.25*(Shat(i,k,t-1)-S(i,k,t-1))/Gb(i,k));
             Gmin(i) = tanh(1.25*(-(Shat2(i,k,t-1)-S(i,k,t-1))/Gb(i,k)));
+%             [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, action, counter);
             [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, action, counter);
         end
         % !Add exogenous capacity changes (if any) and correct for regulations:
@@ -860,7 +869,7 @@ function [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i
 %                 action = client.get_action(eid, obs);
                 dSij(i,j,k) = action(counter);
                 dSij(j,i,k) = -dSij(i,j,k);
-                counter = counter + 1;
+%                 counter = counter + 1;
             end
         end
     end
