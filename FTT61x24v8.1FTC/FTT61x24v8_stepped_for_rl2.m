@@ -310,9 +310,9 @@ for k = [7, 15] % Ireland and UK only
     HG(:,counter,1:HN) = permute(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2]);
     HE(:,counter,1:HN) = permute(HistoricalE(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2])/1000; %Factor 1000 IEA Mt -> Gt
     %From 2013 to 2017 quarterly
-    [2013:2017]
-    HistoricalG(7+(k-1)*27:30+(k-1)*27,47:51)
-    2013+dt*[1:17]
+%     [2013:2017];
+%     HistoricalG(7+(k-1)*27:30+(k-1)*27,47:51)
+%     2013+dt*[1:17]
     HG(:,counter,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalG(7+(k-1)*27:30+(k-1)*27,47:51)',2013+dt*[1:17]'),[2 3 1]);
     HE(:,counter,HN+1:HN+17) = permute(interp1N([2013:2017]',HistoricalE(7+(k-1)*27:30+(k-1)*27,47:51)'/1000,2013+dt*[1:17]'),[2 3 1]); %Factor 1000 IEA Mt -> Gt    
 end

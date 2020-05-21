@@ -104,25 +104,20 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %         writematrix(output,'output.csv')
 %         output.G;
 %         G_cum = sum(sum(sum(output.G)));
-        G_cum = nanmean(output.G, "all");
+        G_cum = mean(output.G, "all");
 %         U_cum = sum(sum(sum(output.U)));
-        U_cum = nanmean(output.U, "all");
-        E_cum = nanmean(output.E,'all');
-%         CF_cum = sum(sum(sum(output.CF)));
-        CF_cum = nanmean(output.CF, 'all');
+        U_cum = mean(output.U)));
+        E_cum = mean(output.E,'all');
+        CF_cum = sum(sum(sum(output.CF)));
     %     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
-        LCOE_cum = nanmean(output.LCOE,'all');
-%         writematrix(output.LCOE,'LCOE.csv')
-        TLCOE_cum = nanmean(output.TLCOE,'all');
-%         W_cum = sum(sum(sum(output.W)));
-        W_cum = nanmean(output.W, 'all');
-%         I_cum = sum(sum(sum(output.I)));
-        I_cum = nanmean(output.I, 'all');
+        LCOE_cum = nanmean(output.LCOE,'all')
+        writematrix(output.LCOE,'LCOE.csv')
+        TLCOE_cum = nanmean(output.TLCOE,'all')
+        W_cum = sum(sum(sum(output.W)));
+        I_cum = sum(sum(sum(output.I)));
         P_cum = nanmean(output.P,'all');
-%         Fcosts_cum = sum(sum(sum(output.FCosts)));
-        Fcosts_cum = nanmean(output.FCosts, 'all');
-%         CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
-        CO2_costs_cum = nanmean(output.CO2Costs, 'all');
+        Fcosts_cum = sum(sum(sum(output.FCosts)));
+        CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
         % S_lim_cum = 
         % S_lim2_cum = 
 
