@@ -4,6 +4,7 @@
 
 function observations = Run_FTT_Power(action, input_NWR, input_NET)
 % while true
+% for runner = 1:500
 % %     Initialise reinforcment learning client
     import ray.rllib.env.policy_client.*
     import gym.*
@@ -91,6 +92,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
    
    [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles);
+%     for runner = 1:50
     while true
         eid = client.start_episode();
 
@@ -120,8 +122,8 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
         % handles
 
-        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum]
-        reward = -(E_cum*1000 + LCOE_cum/1000)
+        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
+        reward = -(E_cum*1000 + LCOE_cum/1000);
         client.log_returns(eid, reward)
         client.end_episode(eid, observations)
     end
