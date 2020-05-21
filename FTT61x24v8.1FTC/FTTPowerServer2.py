@@ -11,6 +11,7 @@ import os
 import ray
 from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.agents.ddpg import DDPGTrainer
 from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
 from gym.spaces import Box, Discrete, MultiDiscrete
@@ -62,33 +63,42 @@ if __name__ == "__main__":
         "input_evaluation": [],
     }
 
-    if args.run == "DQN":
-        # Example of using DQN (supports off-policy actions).
-        trainer = DQNTrainer(
-            env='srv',
-            config=dict(
-                connector_config, **{
-                    "exploration_config": {
-                        "type": "EpsilonGreedy",
-                        "initial_epsilon": 1.0,
-                        "final_epsilon": 0.02,
-                        "epsilon_timesteps": 1000,
-                    },
-                    "learning_starts": 100,
-                    "timesteps_per_iteration": 200,
-                    "log_level": "INFO",
-                }))
-    elif args.run == "PPO":
+    # if args.run == "DDPG":
         # Example of using PPO (does NOT support off-policy actions).
-        trainer = PPOTrainer(
-            env='srv',
-            config=dict(
-                connector_config, **{
-                    "sample_batch_size": 1000,
-                    "train_batch_size": 4000,
-                }))
-    else:
-        raise ValueError("--run must be DQN or PPO")
+    trainer = DDPGTrainer(
+        env='srv',
+        config=dict(
+            connector_config, **{
+                "sample_batch_size": 1000,
+                "train_batch_size": 4000,
+            }))
+    # elif args.run == "DQN":
+    #     # Example of using DQN (supports off-policy actions).
+    #     trainer = DQNTrainer(
+    #         env='srv',
+    #         config=dict(
+    #             connector_config, **{
+    #                 "exploration_config": {
+    #                     "type": "EpsilonGreedy",
+    #                     "initial_epsilon": 1.0,
+    #                     "final_epsilon": 0.02,
+    #                     "epsilon_timesteps": 1000,
+    #                 },
+    #                 "learning_starts": 100,
+    #                 "timesteps_per_iteration": 200,
+    #                 "log_level": "INFO",
+    #             }))
+    # elif args.run == "PPO":
+    #     # Example of using PPO (does NOT support off-policy actions).
+    #     trainer = PPOTrainer(
+    #         env='srv',
+    #         config=dict(
+    #             connector_config, **{
+    #                 "sample_batch_size": 1000,
+    #                 "train_batch_size": 4000,
+    #             }))
+    # else:
+    #     raise ValueError("--run must be DQN or PPO")
 
     checkpoint_path = CHECKPOINT_FILE.format(args.run)
 

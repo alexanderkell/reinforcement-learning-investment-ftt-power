@@ -123,6 +123,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         % handles
 
         observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
+%         LCOE_cum
         reward = -(E_cum*1000 + LCOE_cum/1000);
         client.log_returns(eid, reward)
         client.end_episode(eid, observations)
