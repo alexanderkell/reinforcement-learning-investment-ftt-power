@@ -7,7 +7,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 % for runner = 1:500
 % %     Initialise reinforcment learning client
 %     pyenv("ExecutionMode","OutOfProcess")
-    pyenv("/usr/bin/python3")
+    disp(pyenv)
     
     import ray.rllib.env.policy_client.*
     import gym.*
