@@ -100,7 +100,9 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
    
    [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles);
 %     for runner = 1:50
+    num_of_runs_so_far = 0;
     while true
+        
         eid = client.start_episode();
 
 %         obs = env.reset()
@@ -129,12 +131,19 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         % S_lim2_cum = 
 
         % handles
-
+        
+        if mod(num_of_runs_so_far, 1000) == 0
+            save(sprintf('data/outputs/output%f.mat', floor(num_of_runs_so_far)), 'output')
+            
+        end
         observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
 %         LCOE_cum
         reward = -(E_cum*1000 + LCOE_cum/1000);
         client.log_returns(eid, reward)
         client.end_episode(eid, observations)
+        
+        num_of_runs_so_far = num_of_runs_so_far + 1;
+
     end
 end
 
@@ -212,6 +221,7 @@ CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
     HistoricalE = handles.HistoricalE;
     CapacityFactors = handles.CapacityFactors;
     CSCData = handles.CSCData;    
+    
 
 end
 %     set(handles.Slots(k),'BackgroundColor',[1 1 0]);

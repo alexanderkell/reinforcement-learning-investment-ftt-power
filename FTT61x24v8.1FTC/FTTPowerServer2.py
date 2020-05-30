@@ -100,13 +100,15 @@ if __name__ == "__main__":
     # else:
     #     raise ValueError("--run must be DQN or PPO")
 
-    checkpoint_path = CHECKPOINT_FILE.format(args.run)
+    # checkpoint_path = CHECKPOINT_FILE.format(args.run)
+    # checkpoint_path = 'RL_Checkpoints/21-May-2020/checkpoint-461'
 
+    checkpoint_path = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_460/checkpoint-460"
     # # Attempt to restore from checkpoint if possible.
-    # if os.path.exists(checkpoint_path):
-    #     checkpoint_path = open(checkpoint_path).read()
-    #     print("Restoring from checkpoint path", checkpoint_path)
-    #     trainer.restore(checkpoint_path)`
+    if os.path.exists(checkpoint_path):
+        checkpoint_path = open(checkpoint_path).read()
+        print("Restoring from checkpoint path", checkpoint_path)
+        trainer.restore(checkpoint_path)
 
     # Serving and training loop
     while True:
