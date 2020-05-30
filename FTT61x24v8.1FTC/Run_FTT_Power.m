@@ -8,7 +8,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 % %     Initialise reinforcment learning client
 %     pyenv("ExecutionMode","OutOfProcess")
 %     pyenv
-    pyenv('Version', 'usr/bin/python3.6')
+%     pyenv('Version', 'usr/bin/python3.6')
 %     pyenv('Version',3.6)
     disp(pyenv)
     
