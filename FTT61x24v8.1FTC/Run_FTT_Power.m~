@@ -12,10 +12,9 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
     
     import reinforcement_learning_client_server.*
 
-%     py.importlib.import_module('reinforcement_learning_client_server');
+    py.importlib.import_module('reinforcement_learning_client_server');
 
-%     py.numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape(11,-1)
-%     np
+
 
     disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
     env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
@@ -98,7 +97,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         eid = client.start_episode();
 
 %         obs = env.reset()
-        obs = py.numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        obs = numpy.
         if ~isempty(CostSheet)
        %Simulation here!
             clear handles.Scenario(k);
