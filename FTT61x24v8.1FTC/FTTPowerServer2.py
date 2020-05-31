@@ -105,10 +105,10 @@ if __name__ == "__main__":
 
     # checkpoint_path = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_460/checkpoint-460"
     # # Attempt to restore from checkpoint if possible.
-    if os.path.exists(checkpoint_path):
-        checkpoint_path = open(checkpoint_path).read()
-        print("Restoring from checkpoint path", checkpoint_path)
-        trainer.restore(checkpoint_path)
+    # if os.path.exists(checkpoint_path):
+    #     checkpoint_path = open(checkpoint_path).read()
+    #     print("Restoring from checkpoint path", checkpoint_path)
+    #     trainer.restore(checkpoint_path)
 
     # Serving and training loop
     while True:
