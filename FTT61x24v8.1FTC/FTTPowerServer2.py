@@ -100,20 +100,33 @@ if __name__ == "__main__":
     # else:
     #     raise ValueError("--run must be DQN or PPO")
 
-    checkpoint_path = CHECKPOINT_FILE.format(args.run)
-    # checkpoint_path = 'RL_Checkpoints/21-May-2020/checkpoint-461'
+    # checkpoint_path = CHECKPOINT_FILE.format(args.run)
+    checkpoint_path = 'RL_Checkpoints/21-May-2020/checkpoint-461.pickle'
+    checkpoint_path_meta = "RL_Checkpoints/21-May-2020/checkpoint-461"
 
-    # checkpoint_path = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_460/checkpoint-460"
-    # # Attempt to restore from checkpoint if possible.
-    # if os.path.exists(checkpoint_path):
-    #     checkpoint_path = open(checkpoint_path).read()
-    #     print("Restoring from checkpoint path", checkpoint_path)
-    #     trainer.restore(checkpoint_path)
+
+    # checkpoint_path = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_458/checkpoint-458.pickle"
+    # checkpoint_path_meta = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_458/checkpoint-458"
+    # Attempt to restore from checkpoint if possible.
+    import pickle
+    if os.path.exists(checkpoint_path):
+        # checkpoint_path = open(checkpoint_path).read()
+        # print("Restoring from checkpoint path", checkpoint_path)
+        # trainer.restore(checkpoint_path)
+        # checkpoint_path = open(checkpoint_path).read()
+        checkpoint_path = pickle.load(open(checkpoint_path, "rb"))
+        # print("Restoring from checkpoint path", checkpoint_path)
+        trainer.restore(checkpoint_path_meta)
+        print("Restored")
+        # open("../../data/raw/pickled_data/{}_restuarants_data.p".format(self.postcode,),
+
+
 
     # Serving and training loop
     while True:
         print(pretty_print(trainer.train()))
         checkpoint = trainer.save()
+        checkpoint_path_save = CHECKPOINT_FILE.format(args.run)
         print("Last checkpoint", checkpoint)
-        with open(checkpoint_path, "w") as f:
-            f.write(checkpoint)
+        with open(checkpoint_path_save, "w") as f:
+            f.write(checkpoint_path_save)
