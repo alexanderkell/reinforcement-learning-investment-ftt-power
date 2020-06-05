@@ -116,6 +116,7 @@ if __name__ == "__main__":
         # checkpoint_path = open(checkpoint_path).read()
         checkpoint_path = pickle.load(open(checkpoint_path, "rb"))
         # print("Restoring from checkpoint path", checkpoint_path)
+        print("Trying to restore")
         trainer.restore(checkpoint_path_meta)
         print("Restored")
         # open("../../data/raw/pickled_data/{}_restuarants_data.p".format(self.postcode,),
