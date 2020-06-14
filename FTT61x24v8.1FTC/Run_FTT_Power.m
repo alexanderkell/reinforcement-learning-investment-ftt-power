@@ -27,7 +27,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
 
 
-    client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9910');
+    client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9911');
 
 
 
