@@ -615,7 +615,7 @@ for t = 17:N
         counter = counter + 1;
         action = client.get_action(eid, obs);
         action = double(action);
-	writematrix(action, "action.csv")
+% 	writematrix(action, "action.csv")
     end
 %     if mod(t,4)==0
 %         if ~ishandle(hw)
