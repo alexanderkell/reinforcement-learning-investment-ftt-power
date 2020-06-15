@@ -613,7 +613,7 @@ for t = 17:N
 %     if t == 17  % t == ceil((N-17)/2)
 %     if t == 17 || t == 47 || t == 77 || t == 107 || t == 137
 %     if t == 17 || t== 32 || t == 47 || t == 62 || t == 77 || t == 92 || t == 107 || t == 122 || t == 137 
-    if mod(t, 4) == 0
+    if mod(t-1, 4) == 0
         counter = counter + 1;
         action = client.get_action(eid, obs);
         action = double(action);

@@ -133,7 +133,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         % handles
         
         if mod(num_of_runs_so_far, 1000) == 0
-            save(sprintf('data/outputs/output_7-5-year-investments-%f.mat', floor(num_of_runs_so_far)), 'output')
+            save(sprintf('data/outputs/output_7-every-year-investments-%f.mat', floor(num_of_runs_so_far)), 'output')
             
         end
         observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
