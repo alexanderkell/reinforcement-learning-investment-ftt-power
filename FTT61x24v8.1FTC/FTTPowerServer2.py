@@ -44,7 +44,7 @@ class AdderServing(gym.Env):
 if __name__ == "__main__":
     # SERVER_ADDRESS = "localhost"
     SERVER_ADDRESS = "127.0.0.1"
-    SERVER_PORT = 9911
+    SERVER_PORT = 9912
     args = parser.parse_args()
     args.run = "PPO"
     ray.init()
