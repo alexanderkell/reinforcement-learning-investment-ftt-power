@@ -69,8 +69,8 @@ if __name__ == "__main__":
         env='srv',
         config=dict(
             connector_config, **{
-                "sample_batch_size": 1000,
-                "train_batch_size": 4000,
+                "sample_batch_size": 10000,
+                "train_batch_size": 40000,
             }))
     # elif args.run == "DQN":
     #     # Example of using DQN (supports off-policy actions).

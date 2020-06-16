@@ -305,7 +305,7 @@ counter = 0;
 for k = [7, 15] % Ireland and UK only
     %Before 2013 (up to 2012)
     counter = counter + 1;
-    writematrix(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),'HG-3NWR.csv')
+%     writematrix(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),'HG-3NWR.csv')
     HG(:,counter,1:HN) = permute(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2]);
     HE(:,counter,1:HN) = permute(HistoricalE(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2])/1000; %Factor 1000 IEA Mt -> Gt
     %From 2013 to 2017 quarterly
