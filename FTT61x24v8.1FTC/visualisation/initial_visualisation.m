@@ -1,6 +1,12 @@
-output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/data/outputs/output482000.000000.mat');
-
+% One investment
+% output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/data/outputs/output482000.000000.mat');
+% Every year investment
+output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/raw_data/output_7-every-year-investments-50000.000000.mat')
 capacity = output.output.U;
+
+elec_generated = output.output.G;
+
+demand = output.output.D;
 
 class(capacity)
 % plotmatrix(capacity)
@@ -11,6 +17,10 @@ csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement
 
 csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/capacity_result.csv', capacity);
 
+csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/electricity_generated.csv', elec_generated);
+
 uk_capacity = capacity(:,:,1);
 
-% plot(uk_capacity) 
+% plot(elec_generated(:,:,1)) 
+
+plot(demand(:,:,2))
