@@ -8,6 +8,11 @@ elec_generated = output.output.G;
 
 demand = output.output.D;
 
+carbon_emissions = output.output.E;
+
+LCOE = output.output.LCOE;
+
+
 class(capacity)
 % plotmatrix(capacity)
 
@@ -19,8 +24,13 @@ csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement
 
 csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/electricity_generated.csv', elec_generated);
 
+csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/carbon_emissions.csv', carbon_emissions);
+ 
+csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/LCOE.csv', LCOE);
+
+
 uk_capacity = capacity(:,:,1);
 
 % plot(elec_generated(:,:,1)) 
 
-plot(demand(:,:,2))
+plot(carbon_emissions(:,:,2))
