@@ -1,7 +1,10 @@
 % One investment
 % output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/data/outputs/output482000.000000.mat');
 % Every year investment
-output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/raw_data/output_7-every-year-investments-50000.000000.mat')
+% output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/raw_data/output_7-every-year-investments-50000.000000.mat')
+
+output = load('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/data/outputs/sensitivity_analysis/output_sensitivity_analysis-28.000000.mat')
+
 capacity = output.output.U;
 
 elec_generated = output.output.G;
@@ -34,8 +37,8 @@ csvwrite('/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement
 
 uk_capacity = capacity(:,:,1);
 
-% plot(elec_generated(:,:,1)) 
+plot(elec_generated(:,:,1)) 
 
 % plot(carbon_emissions(:,:,2))
 
-plot(demand(:,:,1))
+% plot(demand(:,:,1))

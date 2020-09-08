@@ -29,7 +29,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
     client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9912');
 
-
+    
 
 %     eid = client.start_episode();
 %     obs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -60,7 +60,8 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     handles.NET = input_NET;
 %     handles.dtEdit = '0.25';
     handles.dtEdit = '0.25';
-    handles.EndEdit = '2050';
+%     handles.EndEdit = '2050';
+    handles.EndEdit = '2020';
 
     AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
     HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
@@ -132,10 +133,10 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
         % handles
         
-%         if mod(num_of_runs_so_far, 10000) == 0
-%             save(sprintf('data/outputs/output_7-every-year-investments-%f.mat', floor(num_of_runs_so_far)), 'output')
+        if mod(num_of_runs_so_far, 1) == 10000
+            save(sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-%f.mat', floor(num_of_runs_so_far)), 'output')
             
-%         end
+        end
         observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
 %         LCOE_cum
         reward = -(E_cum*1000 + LCOE_cum/1000);
@@ -143,7 +144,6 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         client.end_episode(eid, observations)
         
         num_of_runs_so_far = num_of_runs_so_far + 1;
-
     end
 end
 
