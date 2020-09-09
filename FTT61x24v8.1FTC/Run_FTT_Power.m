@@ -2,7 +2,7 @@
 
 % action = "Hello";
 
-function observations = Run_FTT_Power(port)
+function observations = Run_FTT_Power()
 % while true
 % for runner = 1:500
 % %     Initialise reinforcment learning client
@@ -25,7 +25,7 @@ function observations = Run_FTT_Power(port)
 
 %     disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
 %     env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
-
+    port = 9912;
     address = strcat('http://127.0.0.1:', num2str(port));
     client = py.ray.rllib.env.policy_client.PolicyClient(address);
 
