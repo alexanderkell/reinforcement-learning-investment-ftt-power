@@ -50,7 +50,7 @@ def run_ftt_power(port):
     eng = matlab.engine.start_matlab()
 
     time.sleep(10)
-    eng.Run_FTT_Power(port, nargout=1)
+    eng.Run_FTT_Power()
 
     return None
 
