@@ -25,9 +25,9 @@ function observations = Run_FTT_Power(port)
 
 %     disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
 %     env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
+    portÛ
 
-    address = strcat('http://127.0.0.1:', num2str(port));
-    client = py.ray.rllib.env.policy_client.PolicyClient(address);
+    client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9912');
 
     
 

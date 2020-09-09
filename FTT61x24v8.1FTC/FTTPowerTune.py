@@ -5,9 +5,12 @@ To try this out, in two separate shells run:
     $ python cartpole_client.py --inference-mode=local|remote
 """
 
+import matlab.engine
 import argparse
 import os
-
+import time
+from multiprocessing import Process
+from subprocess import Popen
 import ray
 from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
@@ -35,11 +38,52 @@ class AdderServing(gym.Env):
     def __init__(self, action_space, observation_space):
         ExternalEnv.__init__(self, action_space, observation_space)
 
-
     def run(self):
         print("Starting policy server at {}:{}".format(SERVER_ADDRESS, SERVER_PORT))
         server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT)
         server.serve_forever()
+
+@ray.remote
+def run_ftt_power(port):
+    os.chdir("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC")
+    eng = matlab.engine.start_matlab()
+    time.sleep(10)
+    eng.Run_FTT_Power(port)
+
+    return None
+
+@ray.remote
+def create_rl_trainer(port, actor_hidden, critic_hidden):
+    SERVER_ADDRESS = "127.0.0.1"
+    SERVER_PORT = port
+    # args = parser.parse_args()
+
+    connector_config = {
+        # Use the connector server to generate experiences.
+        "input": (
+            lambda ioctx: PolicyServerInput(ioctx, SERVER_ADDRESS, SERVER_PORT)
+        ),
+        # Use a single worker process to run the server.
+        "num_workers": 0,
+        # Disable OPE, since the rollouts are coming from online clients.
+        "input_evaluation": [],
+    }
+
+    trainer = DDPGTrainer(
+        env='srv',
+        name= actor_hidden+critic_hidden,
+        config=dict(
+            connector_config, **{
+                "sample_batch_size": 10000,
+                "train_batch_size": 40000,
+                "actor_hiddens": actor_hidden,
+                'critic_hiddens': critic_hidden
+            }))
+
+    for _ in range(10):
+        print(pretty_print(trainer.train()))
+
+    return None
 
 
 if __name__ == "__main__":
@@ -53,36 +97,113 @@ if __name__ == "__main__":
     action_space = Box(low=0.2, high=0.7, shape=(326,), dtype=np.float)
     observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
-    connector_config = {
-        # Use the connector server to generate experiences.
-        "input": (
-            lambda ioctx: PolicyServerInput(ioctx, SERVER_ADDRESS, SERVER_PORT)
-        ),
-        # Use a single worker process to run the server.
-        "num_workers": 0,
-        # Disable OPE, since the rollouts are coming from online clients.
-        "input_evaluation": [],
-    }
+
+    actor_hidden = [
+        [300, 300],
+        [400, 300],
+        [500, 300],
+        [300, 400],
+        [400, 400],
+        [500, 400],
+        [300, 500],
+        [400, 500],
+        [500, 500]
+    ]
+
+    critic_hidden = [
+        [300, 300],
+        [400, 300],
+        [500, 300],
+        [300, 400],
+        [400, 400],
+        [500, 400],
+        [300, 500],
+        [400, 500],
+        [500, 500]
+    ]
+
+    for actor_layers, critic_layers in zip(actor_hidden, critic_hidden):
+        ray.get([create_rl_trainer.remote(9912, actor_layers, critic_layers), run_ftt_power.remote(9912)])
+
+
+    # eng = matlab.engine.start_matlab()
+    # connector_config = {
+    #     # Use the connector server to generate experiences.
+    #     "input": (
+    #         lambda ioctx: PolicyServerInput(ioctx, SERVER_ADDRESS, SERVER_PORT)
+    #     ),
+    #     # Use a single worker process to run the server.
+    #     "num_workers": 0,
+    #     # Disable OPE, since the rollouts are coming from online clients.
+    #     "input_evaluation": [],
+    # }
+
+
 
     # if args.run == "DDPG":
         # Example of using PPO (does NOT support off-policy actions).
-    trainer = DDPGTrainer(
-        env='srv',
-        config=dict(
-            connector_config, **{
-                "sample_batch_size": 10000,
-                "train_batch_size": 40000,
-            }))
+    # trainer = DDPGTrainer(
+    #     env='srv',
+    #     config=dict(
+    #         connector_config, **{
+    #             "sample_batch_size": 10000,
+    #             "train_batch_size": 40000,
+    #         }))
 
     # tune.run("DDPG",
     #          config={'env':'srv', "sample_batch_size": tune.grid_search([100, 10000])})
-    tune.run("DDPG",
-             config = dict(
-                 connector_config, **{
-                     'env': 'srv',
-                     "sample_batch_size": tune.grid_search([100, 10000]),
-                     "train_batch_size": 40000
-                 }))
+
+    # def training_function(x):
+        # print(x)
+        # trainer = DDPGTrainer(
+        #     # env='srv',
+        #     config=dict(
+        #         **{
+        #             "env": 'srv',
+        #             "sample_batch_size": x['sample_batch_size'],
+        #             "train_batch_size": x['train_batch_size'],
+        #         }))
+        # p1 = Process(target=run_ftt_power())
+        # p1.start()
+        # p2 = Process(target=func2)
+        # p2.start()
+        # return trainer
+
+    sample_batch_size = [10000, 100]
+    # for batch_size in sample_batch_size:
+        # trainer = DDPGTrainer(
+        #     env='srv',
+        #     config=dict(
+        #         connector_config, **{
+        #             "sample_batch_size": 10000,
+        #             "train_batch_size": 40000,
+        #         }))
+
+        # while True:
+        # print(pretty_print(trainer.train()))
+            # checkpoint = trainer.save()
+            # checkpoint_path_save = CHECKPOINT_FILE.format(args.run)
+            # print("Last checkpoint", checkpoint)
+            # with open(checkpoint_path_save, "w") as f:
+            #     f.write(checkpoint_path_save)
+
+
+
+    # Popen(["python3", "/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/create_rl_trainer.py"])
+    # Popen(["python3", "/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/run_FTT_power_from_python.py"])
+
+
+
+    # tune.register_trainable("trainable_id", lambda x: training_function(x))
+
+    # tune.run("DDPG", "hyper_parameter_tuning",
+    #          config = dict(
+    #              connector_config, **{
+    #                  'env': 'srv',
+    #                  "sample_batch_size": tune.grid_search([10000, 40000]),
+    #                  "train_batch_size": 40000
+    #              }))
+
 
     # elif args.run == "DQN":
     #     # Example of using DQN (supports off-policy actions).
