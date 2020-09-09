@@ -71,7 +71,6 @@ def create_rl_trainer(port, actor_hidden, critic_hidden):
 
     trainer = DDPGTrainer(
         env='srv',
-        name= actor_hidden+critic_hidden,
         config=dict(
             connector_config, **{
                 "sample_batch_size": 10000,
@@ -94,7 +93,7 @@ if __name__ == "__main__":
     args.run = "PPO"
     ray.init()
     # action_space = MultiDiscrete(50)
-    action_space = Box(low=0.2, high=0.7, shape=(326,), dtype=np.float)
+    action_space = Box(low=0.2, high=0.7, shape=(2,), dtype=np.float)
     observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
 
