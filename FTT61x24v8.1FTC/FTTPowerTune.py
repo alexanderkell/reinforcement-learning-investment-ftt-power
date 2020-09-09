@@ -45,7 +45,7 @@ class AdderServing(gym.Env):
 
 @ray.remote
 def run_ftt_power(port):
-    os.chdir("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC")
+    os.chdir("/home/alexander/Documents/17-ftt-power-reinforcement/FTT61x24v8.1FTC")
     eng = matlab.engine.start_matlab()
     time.sleep(10)
     eng.Run_FTT_Power(port)
