@@ -2,7 +2,9 @@
 
 % action = "Hello";
 
-function observations = Run_FTT_Power()
+function observations = Run_FTT_Power(port, actor_hidden, critic_hidden)
+    
+
 % while true
 % for runner = 1:500
 % %     Initialise reinforcment learning client
@@ -10,7 +12,7 @@ function observations = Run_FTT_Power()
 %     pyenv
 %     pyenv('Version', 'usr/bin/python3.6')
 %     pyenv('Version',3.6)
-    disp(pyenv)
+%     disp(pyenv);
     
     import ray.rllib.env.policy_client.*
     import gym.*
@@ -25,7 +27,7 @@ function observations = Run_FTT_Power()
 
 %     disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
 %     env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
-    port = 9912;
+
     address = strcat('http://127.0.0.1:', num2str(port));
     client = py.ray.rllib.env.policy_client.PolicyClient(address);
 
@@ -133,8 +135,10 @@ function observations = Run_FTT_Power()
 
         % handles
         
-        if mod(num_of_runs_so_far, 1) == 10000
-            save(sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-%f.mat', floor(num_of_runs_so_far)), 'output')
+        if mod(num_of_runs_so_far, 1) == 50000
+%             save(sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far)), output)
+            output_title = sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
+            save(output_title, 'output')
             
         end
         observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
