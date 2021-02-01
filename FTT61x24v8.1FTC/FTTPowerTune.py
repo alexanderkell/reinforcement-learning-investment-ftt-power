@@ -88,7 +88,8 @@ def create_rl_trainer(port, actor_hidden, critic_hidden):
                 'critic_hiddens': critic_hidden
             }))
 
-    for _ in range(100):
+    # for _ in range(100):
+    while True:
         print(pretty_print(trainer.train()))
 
     # return None
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     # ray.init(num_cpus=7)
     ray.init()
     # action_space = MultiDiscrete(50)
-    action_space = Box(low=0.2, high=0.7, shape=(2,), dtype=np.float)
+    action_space = Box(low=0, high=0.1, shape=(2,), dtype=np.float)
     observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
 
@@ -120,25 +121,25 @@ if __name__ == "__main__":
     # print("Matlab started")
     eng = 1
     actor_hidden = [
-        [300, 300],
-        [400, 300],
-        [300, 400],
+        # [300, 300],
+        # [400, 300],
+        # [300, 400],
         [400, 400],
-        [300, 500],
-        [400, 500],
-        [300, 300, 300],
-        [400, 400, 400],
+        # [300, 500],
+        # [400, 500],
+        # [300, 300, 300],
+        # [400, 400, 400],
     ]
 
     critic_hidden = [
-        [300, 300],
-        [400, 300],
-        [300, 400],
+        # [300, 300],
+        # [400, 300],
+        # [300, 400],
         [400, 400],
-        [300, 500],
-        [400, 500],
-        [300, 300, 300],
-        [400, 400, 400],
+        # [300, 500],
+        # [400, 500],
+        # [300, 300, 300],
+        # [400, 400, 400],
     ]
 
     results = []

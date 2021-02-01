@@ -84,3 +84,63 @@ ggsave("figures/demand_plot.pdf", demand_plot, dpi=1000, width = 30, height = 20
 ```
 
 
+
+```{r}
+tuning_training = read_csv("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/hyperparameter_tuning_training.csv")
+tuning_training
+
+tuning_training$`Hyperparameter set` = as.factor(tuning_training$`Hyperparameter set`)
+```
+
+```{r}
+
+hyperparameter_plot = ggplot(data=filter(tuning_training, timesteps_total>20000), aes(color=`Hyperparameter set`, group=`Hyperparameter set`, x=timesteps_total)) + geom_line(aes(y=episode_reward_min))+ geom_line(aes(y=episode_reward_mean))+ geom_line(aes(y=episode_reward_max)) + ylab("Episode Reward\n(Min, Mean and Max)") + xlab("Number of timesteps")+ theme_classic() + theme(text = element_text(size=27))+
+    theme(legend.position="bottom")+ scale_x_continuous(labels = function(x) format(x, scientific = TRUE))
+
+print(hyperparameter_plot)
+
+ggsave("figures/hyperparameter_training.pdf", hyperparameter_plot, dpi=1000, width = 35, height = 20, units = "cm")
+
+
+```
+  
+  
+  
+```{R}
+  
+training_dat = read_csv('~/Documents/PhD/Projects/17-ftt-power-reinforcement/notebooks/data/processed/training_data_all.csv')  
+
+training_dat$`Reward type` = training_dat$Type
+
+tail(filter(training_dat, Type=="Mean"))
+```
+```{r}
+training_dat_plot = ggplot() +  geom_line(data=filter(training_dat, Step>5000), aes(x=Step, y=Value, color=`Reward type`)) + geom_hline(aes(yintercept=-2.1721175, linetype = "Levelling off"), colour="black")+ theme_classic()+ theme(text = element_text(size=27)) + xlab("Number of steps") + ylab("Reward")+scale_linetype_manual(name = '',
+                        values = c('Levelling off' = 1),
+                        guide = guide_legend(override.aes = list(colour = 'black')))
+
+print(training_dat_plot)
+
+ggsave("figures/runtime_steps_plot.pdf", training_dat_plot, dpi=1000, width = 35, height = 20, units = "cm")
+
+
+
+```
+
+
+
+```{r}
+tuning_params = read_csv("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/data/outputs/hyperparameter_tuning_training_with_params.csv")
+head(tuning_params)
+tuning_params$`Hyperparameter\nset` = tuning_params$`Hyperparameter set`
+
+```
+```{r}
+hyperparameter_plot_params = ggplot(data=filter(tuning_params, timesteps_total>20000), aes(color=`Hyperparameter\nset`, group=`Hyperparameter\nset`, x=timesteps_total)) + geom_line(aes(y=episode_reward_min))+ geom_line(aes(y=episode_reward_mean))+ geom_line(aes(y=episode_reward_max)) + ylab("Episode Reward\n(Min, Mean and Max)") + xlab("Number of timesteps")+ theme_classic() + theme(text = element_text(size=27))+ theme(legend.position="bottom")+ scale_x_continuous(labels = function(x) format(x, scientific = TRUE)) +guides(color=guide_legend(nrow=3,byrow=TRUE))
+
+print(hyperparameter_plot_params)
+
+ggsave("figures/hyperparameter_plot_params.pdf", hyperparameter_plot_params, dpi=1000, width = 35, height = 20, units = "cm")
+
+
+```
