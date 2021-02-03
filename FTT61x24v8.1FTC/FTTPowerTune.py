@@ -115,7 +115,8 @@ if __name__ == "__main__":
     observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
 
-    os.chdir("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/")
+    # os.chdir("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/")
+    os.chdir("/home/ps/ce-fs2/akell/PhD/ftt-power/reinforcement-learning-investment-ftt-power/FTT61x24v8.1FTC/")
     # os.chdir("/home/alexander/Documents/reinforcement-learning-investment-ftt-power/FTT61x24v8.1FTC")
     # eng = matlab.engine.start_matlab()
     # print("Matlab started")
