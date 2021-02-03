@@ -144,7 +144,7 @@ if __name__ == "__main__":
     ]
 
     results = []
-    for port, actor_layers, critic_layers in zip(range(9921, 9921+len(actor_hidden)), actor_hidden, critic_hidden):
+    for port, actor_layers, critic_layers in zip(range(9923, 9923+len(actor_hidden)), actor_hidden, critic_hidden):
         # ray.get([create_rl_trainer.remote(9912, actor_layers, critic_layers), run_ftt_power.remote(9912, actor_layers, critic_layers)])
         result = run_model.remote(port, actor_layers, critic_layers, eng)
         results.append(result)
