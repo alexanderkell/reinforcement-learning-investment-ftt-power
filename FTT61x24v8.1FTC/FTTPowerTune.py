@@ -22,7 +22,7 @@ from ray.rllib.env import PolicyServerInput
 from ray.rllib.agents.trainer_template import build_trainer
 
 from ray.tune.registry import register_env
-import ray.tune as tune
+# import ray.tune as tune
 from ray.rllib.env.external_env import ExternalEnv
 import gym
 import numpy as np
