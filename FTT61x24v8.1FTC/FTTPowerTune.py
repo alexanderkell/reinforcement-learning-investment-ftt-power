@@ -18,7 +18,7 @@ from ray.rllib.agents.ddpg import DDPGTrainer
 # from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
 from gym.spaces import Box, Discrete, MultiDiscrete
-from rllib.env import PolicyServerInput
+from ray.rllib.env import PolicyServerInput
 from ray.rllib.agents.trainer_template import build_trainer
 
 from ray.tune.registry import register_env
