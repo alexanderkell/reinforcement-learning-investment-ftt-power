@@ -56,8 +56,14 @@ def run_ftt_power(port, actor_layers, critic_layers, eng):
     with matlab.engine.start_matlab() as eng:
         print("Running FTT Power")
         time.sleep(5)
-        eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1)
-
+#         eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1)
+        out = StringIO.StringIO()
+        err = StringIO.StringIO()
+        retvals = eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1,stdout=out,stderr=err)
+        outstring = out.getvalue()
+        errstring = err.getvalue()
+        logging.debug('ml output:'+str(outstring)+'\n')
+        logging.debug('ml err output:'+str(errstring)+'\n')
     # return None
 
 @ray.remote
