@@ -27,6 +27,9 @@ from ray.rllib.env.external_env import ExternalEnv
 import gym
 import numpy as np
 
+from io import StringIO
+import logging
+
 SERVER_ADDRESS = "localhost"
 SERVER_PORT = 9900
 CHECKPOINT_FILE = "last_checkpoint_{}.out"
