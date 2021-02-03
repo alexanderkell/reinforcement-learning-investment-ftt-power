@@ -67,8 +67,8 @@ def run_ftt_power(port, actor_layers, critic_layers, eng):
         except:
             outstring = out.getvalue()
             errstring = err.getvalue()
-            logging.debug('ml output:'+str(outstring)+'\n')
-            logging.debug('ml err output:'+str(errstring)+'\n')
+            print('ml output:'+str(outstring)+'\n')
+            print('ml err output:'+str(errstring)+'\n')
     # return None
 
 @ray.remote
