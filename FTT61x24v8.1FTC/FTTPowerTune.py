@@ -62,11 +62,13 @@ def run_ftt_power(port, actor_layers, critic_layers, eng):
 #         eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1)
         out = StringIO()
         err = StringIO()
-        retvals = eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1,stdout=out,stderr=err)
-        outstring = out.getvalue()
-        errstring = err.getvalue()
-        logging.debug('ml output:'+str(outstring)+'\n')
-        logging.debug('ml err output:'+str(errstring)+'\n')
+        try:
+            retvals = eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1,stdout=out,stderr=err)
+        except:
+            outstring = out.getvalue()
+            errstring = err.getvalue()
+            logging.debug('ml output:'+str(outstring)+'\n')
+            logging.debug('ml err output:'+str(errstring)+'\n')
     # return None
 
 @ray.remote
