@@ -18,7 +18,7 @@ from ray.rllib.agents.ddpg import DDPGTrainer
 from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
 from gym.spaces import Box, Discrete, MultiDiscrete
-from rllib.env.PolicyServerInput import PolicyServer
+from rllib.env import PolicyServerInput
 from ray.rllib.agents.trainer_template import build_trainer
 
 from ray.tune.registry import register_env
@@ -41,7 +41,7 @@ class AdderServing(gym.Env):
 
     def run(self):
         print("Starting policy server at {}:{}".format(SERVER_ADDRESS, SERVER_PORT))
-        server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT)
+        server = PolicyServerInput(self, SERVER_ADDRESS, SERVER_PORT)
         server.serve_forever()
 
 @ray.remote
