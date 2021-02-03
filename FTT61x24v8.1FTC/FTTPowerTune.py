@@ -82,7 +82,7 @@ def create_rl_trainer(port, actor_hidden, critic_hidden):
         # name="actor-{}_critic-{}".format(actor_hidden, critic_hidden),
         config=dict(
             connector_config, **{
-                "sample_batch_size": 10000,
+                # "sample_batch_size": 10000,
                 "train_batch_size": 40000,
                 "actor_hiddens": actor_hidden,
                 'critic_hiddens': critic_hidden
