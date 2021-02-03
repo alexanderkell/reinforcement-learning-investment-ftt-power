@@ -135,7 +135,7 @@ function observations = Run_FTT_Power(port, actor_hidden, critic_hidden)
 
         % handles
         
-        if mod(num_of_runs_so_far, 1) == 5000
+        if mod(num_of_runs_so_far, 1) == 10
 %             save(sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far)), output)
             output_title = sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
             save(output_title, 'output')
