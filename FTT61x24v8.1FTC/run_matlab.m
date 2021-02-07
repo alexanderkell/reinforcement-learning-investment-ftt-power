@@ -11,5 +11,5 @@ function result = run_matlab(a, b)
     address = strcat('http://127.0.0.1:', num2str(9914));
     client = py.ray.rllib.env.PolicyClient(address);
 
-    // eid = client.start_episode();
+% eid = client.start_episode();
 
