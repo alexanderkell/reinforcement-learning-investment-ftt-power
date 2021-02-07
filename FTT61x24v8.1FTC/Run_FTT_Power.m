@@ -62,8 +62,8 @@ function observations = Run_FTT_Power(port, actor_hidden, critic_hidden)
 %     handles.NET = input_NET;
 %     handles.dtEdit = '0.25';
     handles.dtEdit = '0.25';
-%     handles.EndEdit = '2050';
-    handles.EndEdit = '2020';
+    handles.EndEdit = '2050';
+%     handles.EndEdit = '2020';
 
     AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
     HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
@@ -135,9 +135,14 @@ function observations = Run_FTT_Power(port, actor_hidden, critic_hidden)
 
         % handles
         
+<<<<<<< HEAD
         if mod(num_of_runs_so_far, 1) == 5000
+=======
+        if mod(num_of_runs_so_far, 1) == 10
+>>>>>>> 275c11583555ac036731db8338d1625291066d61
 %             save(sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far)), output)
-            output_title = sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
+%             output_title = sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
+            output_title = sprintf('data/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
             save(output_title, 'output')
             
         end

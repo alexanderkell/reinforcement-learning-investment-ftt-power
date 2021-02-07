@@ -15,17 +15,20 @@ import ray
 from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.agents.ddpg import DDPGTrainer
-from ray.rllib.env.policy_server_input import PolicyServerInput
+# from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
 from gym.spaces import Box, Discrete, MultiDiscrete
-from ray.rllib.utils.policy_server import PolicyServer
+from ray.rllib.env import PolicyServerInput 
 from ray.rllib.agents.trainer_template import build_trainer
 
 from ray.tune.registry import register_env
-import ray.tune as tune
+# import ray.tune as tune
 from ray.rllib.env.external_env import ExternalEnv
 import gym
 import numpy as np
+
+from io import StringIO
+import logging
 
 SERVER_ADDRESS = "localhost"
 SERVER_PORT = 9900
@@ -41,7 +44,7 @@ class AdderServing(gym.Env):
 
     def run(self):
         print("Starting policy server at {}:{}".format(SERVER_ADDRESS, SERVER_PORT))
-        server = PolicyServer(self, SERVER_ADDRESS, SERVER_PORT)
+        server = PolicyServerInput(self, SERVER_ADDRESS, SERVER_PORT)
         server.serve_forever()
 
 @ray.remote
@@ -57,7 +60,6 @@ def run_ftt_power(port, actor_layers, critic_layers, eng):
         print("Running FTT Power")
         time.sleep(5)
         eng.Run_FTT_Power(port, actor_layers, critic_layers, nargout=1)
-
     # return None
 
 @ray.remote
@@ -82,7 +84,7 @@ def create_rl_trainer(port, actor_hidden, critic_hidden):
         # name="actor-{}_critic-{}".format(actor_hidden, critic_hidden),
         config=dict(
             connector_config, **{
-                "sample_batch_size": 10000,
+                # "sample_batch_size": 10000,
                 "train_batch_size": 40000,
                 "actor_hiddens": actor_hidden,
                 'critic_hiddens': critic_hidden
@@ -111,39 +113,40 @@ if __name__ == "__main__":
     # ray.init(num_cpus=7)
     ray.init()
     # action_space = MultiDiscrete(50)
-    action_space = Box(low=0.2, high=0.7, shape=(2,), dtype=np.float)
+    action_space = Box(low=0, high=0.1, shape=(2,), dtype=np.float)
     observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
 
-    os.chdir("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/")
+    # os.chdir("/Users/alexanderkell/Documents/PhD/Projects/17-ftt-power-reinforcement/FTT61x24v8.1FTC/")
+    os.chdir("/home/ps/ce-fs2/akell/PhD/ftt-power/reinforcement-learning-investment-ftt-power/FTT61x24v8.1FTC/")
     # os.chdir("/home/alexander/Documents/reinforcement-learning-investment-ftt-power/FTT61x24v8.1FTC")
     # eng = matlab.engine.start_matlab()
     # print("Matlab started")
     eng = 1
     actor_hidden = [
-        [300, 300],
-        [400, 300],
-        [300, 400],
+        # [300, 300],
+        # [400, 300],
+        # [300, 400],
         [400, 400],
-        [300, 500],
-        [400, 500],
-        [300, 300, 300],
-        [400, 400, 400],
+        # [300, 500],
+        # [400, 500],
+        # [300, 300, 300],
+        # [400, 400, 400],
     ]
 
     critic_hidden = [
-        [300, 300],
-        [400, 300],
-        [300, 400],
+        # [300, 300],
+        # [400, 300],
+        # [300, 400],
         [400, 400],
-        [300, 500],
-        [400, 500],
-        [300, 300, 300],
-        [400, 400, 400],
+        # [300, 500],
+        # [400, 500],
+        # [300, 300, 300],
+        # [400, 400, 400],
     ]
 
     results = []
-    for port, actor_layers, critic_layers in zip(range(9921, 9921+len(actor_hidden)), actor_hidden, critic_hidden):
+    for port, actor_layers, critic_layers in zip(range(9940, 9940+len(actor_hidden)), actor_hidden, critic_hidden):
         # ray.get([create_rl_trainer.remote(9912, actor_layers, critic_layers), run_ftt_power.remote(9912, actor_layers, critic_layers)])
         result = run_model.remote(port, actor_layers, critic_layers, eng)
         results.append(result)

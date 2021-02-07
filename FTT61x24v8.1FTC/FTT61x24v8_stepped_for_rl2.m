@@ -872,6 +872,7 @@ function [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i
                 
 %                 action = client.get_action(eid, obs);
 %                 counter
+%                 action(counter)
                 dSij(i,j,k) = action(counter);
                 dSij(j,i,k) = -dSij(i,j,k);
 %                 counter = counter + 1;
