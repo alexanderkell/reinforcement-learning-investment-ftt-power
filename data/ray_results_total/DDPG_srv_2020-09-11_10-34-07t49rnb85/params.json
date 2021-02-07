@@ -1,0 +1,17 @@
+{
+  "actor_hiddens": [
+    400,
+    400,
+    400
+  ],
+  "critic_hiddens": [
+    400,
+    400,
+    400
+  ],
+  "input": "<function create_rl_trainer.<locals>.<lambda> at 0x10c2c50d0>",
+  "input_evaluation": [],
+  "num_workers": 0,
+  "sample_batch_size": 10000,
+  "train_batch_size": 40000
+}

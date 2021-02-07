@@ -88,7 +88,8 @@ def create_rl_trainer(port, actor_hidden, critic_hidden):
                 'critic_hiddens': critic_hidden
             }))
 
-    for _ in range(100):
+    # for _ in range(100):
+    while True:
         print(pretty_print(trainer.train()))
 
     # return None
