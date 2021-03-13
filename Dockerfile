@@ -192,8 +192,8 @@ WORKDIR /usr/local/MATLAB/extern/engines/python
 
 RUN python3.7 setup.py install
 
-USER matlab
-WORKDIR /home/matlab
+#USER matlab
+#WORKDIR /home/matlab
 
 # Uncomment and maybe change the following line to setup mex in your container
 #RUN /usr/local/MATLAB/bin/mex -v -setup C++
@@ -204,7 +204,14 @@ WORKDIR /app
 
 VOLUME ["ftt-volume"]
 
-ENTRYPOINT [ "python3.7", "FTTPowerTune.py"]
+# ENTRYPOINT [ "python3.7", "FTTPowerTune.py"]
 
+# CMD ["matlab", "-nodisplay", "-nosplash", "-nodesktop", "-r", "run('/app/Run_FTT_Power(9912,500,500)');exit;"] & ["python3.7", "FTTPowerServer2.py"]
 
 # ENTRYPOINT ["/opt/startscript/startmatlab.sh"]
+
+# RUN useradd --user-group --system --create-home --no-log-init app
+# USER app
+
+CMD ["./run_both.sh"]
+
