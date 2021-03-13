@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentData>
+  <component>
+    <componentBaseName>3p/flexnet_license_server</componentBaseName>
+    <componentFileName>3p/flexnet_license_server_common_1596001218.enc</componentFileName>
+    <componentName>3p/flexnet_license_server_common</componentName>
+    <componentVersion>1596001218</componentVersion>
+    <instrset>0</instrset>
+    <locale />
+    <locationId>1</locationId>
+    <numFiles>1</numFiles>
+    <platformList>
+      <platform>glnxa64</platform>
+      <platform>maci64</platform>
+      <platform>win64</platform>
+    </platformList>
+    <releaseFamily>R2020b</releaseFamily>
+    <size>2318931</size>
+    <type />
+    <uncompressedBytes>3008947</uncompressedBytes>
+  </component>
+</componentData>
+

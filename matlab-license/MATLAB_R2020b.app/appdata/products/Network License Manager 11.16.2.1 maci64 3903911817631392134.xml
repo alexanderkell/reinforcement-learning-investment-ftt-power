@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<productAdditionalComps>
+  <dependsOn>
+    <component>
+      <name>license_manager_maci64</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>maci64</platform>
+      </platformList>
+      <version>1606175769</version>
+    </component>
+    <component>
+      <name>bin_utils_maci64</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>maci64</platform>
+      </platformList>
+      <version>1606175678</version>
+    </component>
+    <component>
+      <name>3p/flexnet_license_server_maci64</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>maci64</platform>
+      </platformList>
+      <version>1596016644</version>
+    </component>
+    <component>
+      <name>gcc_runtime_maci64</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>maci64</platform>
+      </platformList>
+      <version>1596016631</version>
+    </component>
+  </dependsOn>
+  <isControllingProduct>false</isControllingProduct>
+  <licenseAgreementType />
+  <platform>maci64</platform>
+  <productBaseCode />
+  <productName>Network License Manager</productName>
+  <productNumber>0</productNumber>
+  <productType>licensedProduct</productType>
+  <productVersion>11.16.2.1</productVersion>
+  <releaseDescription>R2020b</releaseDescription>
+  <releaseFamily>R2020b</releaseFamily>
+</productAdditionalComps>
+

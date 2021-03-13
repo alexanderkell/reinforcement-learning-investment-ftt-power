@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentData>
+  <component>
+    <componentBaseName>license_manager</componentBaseName>
+    <componentFileName>license_manager_maci64_1606175769.enc</componentFileName>
+    <componentName>license_manager_maci64</componentName>
+    <componentVersion>1606175769</componentVersion>
+    <instrset>0</instrset>
+    <locale />
+    <locationId>1</locationId>
+    <numFiles>27</numFiles>
+    <platformList>
+      <platform>maci64</platform>
+    </platformList>
+    <releaseFamily>R2020b</releaseFamily>
+    <size>8794416</size>
+    <type />
+    <uncompressedBytes>25182321</uncompressedBytes>
+  </component>
+</componentData>
+

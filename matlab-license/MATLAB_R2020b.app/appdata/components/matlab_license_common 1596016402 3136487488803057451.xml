@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentData>
+  <component>
+    <componentBaseName>matlab_license</componentBaseName>
+    <componentFileName>matlab_license_common_1596016402.enc</componentFileName>
+    <componentName>matlab_license_common</componentName>
+    <componentVersion>1596016402</componentVersion>
+    <instrset>0</instrset>
+    <locale />
+    <locationId>1</locationId>
+    <numFiles>1</numFiles>
+    <platformList>
+      <platform>glnxa64</platform>
+      <platform>maci64</platform>
+      <platform>win64</platform>
+    </platformList>
+    <releaseFamily>R2020b</releaseFamily>
+    <size>24216</size>
+    <type />
+    <uncompressedBytes>81627</uncompressedBytes>
+  </component>
+</componentData>
+

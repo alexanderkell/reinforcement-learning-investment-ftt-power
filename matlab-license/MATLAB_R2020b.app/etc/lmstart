@@ -1,0 +1,853 @@
+#!/bin/sh
+#
+#  Name:
+#
+#     lmstart	shuts down any currently running license daemons using
+#		lmdown and starts (or restarts) the license manager and
+#		vendor daemons using lmboot.
+#     
+#  Usage:
+#
+#     lmstart 	[-h|-help] | -k | -e [nlines] [-l debuglog] | [-arch]
+#			   [-v] [-wait secs] [-c licensefile]
+#			   [-l debuglog] [-u username] [-2 -p]
+#			   [-x lmdown|lmremove] [lmgrd_options ...]
+#
+#  Description:
+#
+#     This Bourne Shell script shuts down any currently running license
+#     using lmdown and starts (or restarts) the license manager and
+#     vendor daemons using lmboot. It uses configuration information
+#     found normally in the file,
+#
+#                      $MATLAB/etc/lmopts.sh  
+#                              or 
+#                      $LM_ROOT/lmopts.sh     (standalone)
+#
+#     Command line arguments can override some of this configuration
+#     information.
+#
+#  Options:
+#
+#     -h | -help 	- Help. Print usage. Outputs the configuration
+#			  information.
+#
+#     -k		- Check that the tcp ports in the license
+#		          file are free on the local host.
+#
+#     -e nlines         - List the last nlines of the debug logfile(s).
+#                         The default is 10.
+#
+#     -l debuglog       - Path to FLEXnet debug logfile.
+#			  DEFAULT: /var/tmp/lm_TMW.log
+#
+#     -arch             - Assume local host has architecture arch.
+#
+#     -v		- Verbose listing. Outputs the configuration
+#			  information.
+#
+#     -wait secs	- Wait for secs seconds for MathWorks
+#			  vendor daemon to come up. A minimum of 3
+#			  seconds and a maximum of 300 seconds are
+#			  enforced.
+#		          DEFAULT: 300 seconds (this script only)
+#
+#     -c licensefile    - Path to license file.
+#			  DEFAULT: $MATLAB/etc/license.dat
+#			           $LM_ROOT/license.dat (standalone)
+#
+#     -u username       - Username to start/stop license manager.
+#                         Only useful at machine bootup time or if you
+#                         are running as superuser.
+#                         DEFAULT: none
+#
+#     -2 -p 		- Restricts usage of lmdown, lmreread, and 
+#			  lmremove to a FLEXnet administrator who is by 
+#			  default root. If there a Unix group called 
+#			  `lmadmin' then use is restricted to only 
+#			  members of that group. If root is not a member
+#			  of this group, then root does not have permission
+#			  to use any of the above utilities. 
+#
+#			  NOTE: This option only restricts the binary versions
+#			  of the utililties listed above that are normally 
+#			  shipped with any FLEXnet distribution.  MathWorks
+#			  ships these binary files (usually in 
+#			  $MATLAB/etc/$ARCH) and shell script wrapper functions
+#			  (usually in $MATLAB/etc/) that use the binary 
+#			  utilities.  When run on the machine that is running 
+#			  the license manager, the shell script wrapper 
+#			  functions can still bring down the license manager if
+#			  they are run by the same user that started the 
+#			  license manager, or if they are run by the root user.
+#			  The binary versions will not bring down the license 
+#			  manager when this option was used with lmstart.
+#
+#     -x lmdown		- Disallow the lmdown command (no user can run lmdown). 
+#			  The note for option -2 -p also applies to this option. 
+#
+#     -x lmremove	- Disallow the lmremove command (no user can run lmremove).
+#			  The note for option -2 -p also applies to this option. 
+#
+#     lmgrd_options     - Additional 'lmgrd' options to augment
+#			  those of LM_ARGS_LMGRD. Do not use -z.
+#
+# note(s):
+#
+#     1. This script executes without changing the current directory.
+#        This means that relative pathnames can be used in command
+#        options.
+#
+# 
+#  Copyright 1986-2018 The MathWorks, Inc.
+#-----------------------------------------------------------------------
+#23456789012345678901234567890123456789012345678901234567890123456789012
+#
+    arg0_=$0
+#
+    trap "rm -rf /tmp/$$a > /dev/null 2>&1; exit 1" 1 2 3 15
+#
+# Do not use ARCH if it exists in the environment
+#
+    if [ "$LM_SET_ENV" = "" -a "$ARCH" != "" ]; then
+        ARCH=""
+    fi
+#
+#========================= archlist.sh (start) ============================
+#
+# usage:        archlist.sh
+#
+# abstract:     This Bourne Shell script creates the variable ARCH_LIST.
+#
+# note(s):      1. This file is always imbedded in another script
+#
+# Copyright 1997-2013 The MathWorks, Inc.
+#----------------------------------------------------------------------------
+#
+    ARCH_LIST='glnxa64 maci64'
+#=======================================================================
+# Functions:
+#   check_archlist ()
+#=======================================================================
+    check_archlist () { # Sets ARCH. If first argument contains a valid
+			# arch then ARCH is set to that value else
+		        # an empty string. If there is a second argument
+			# do not output any warning message. The most
+			# common forms of the first argument are:
+			#
+			#     ARCH=arch
+			#     MATLAB_ARCH=arch
+			#     argument=-arch
+			#
+                        # Always returns a 0 status.
+                        #
+                        # usage: check_archlist arch=[-]value [noprint]
+                        #
+	if [ $# -gt 0 ]; then
+	    arch_in=`expr "$1" : '.*=\(.*\)'`
+	    if [ "$arch_in" != "" ]; then
+	        ARCH=`echo "$ARCH_LIST EOF $arch_in" | awk '
+#-----------------------------------------------------------------------
+	{ for (i = 1; i <= NF; i = i + 1)
+	      if ($i == "EOF")
+		  narch = i - 1
+	  for (i = 1; i <= narch; i = i + 1)
+		if ($i == $NF || "-" $i == $NF) {
+		    print $i
+		    exit
+		}
+	}'`
+#-----------------------------------------------------------------------
+	       if [ "$ARCH" = "" -a $# -eq 1 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo "    Warning: $1 does not specify a valid architecture - ignored . . ."
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	       fi
+	    else
+		ARCH=""
+	    fi
+	else
+	    ARCH=""
+	fi
+#
+	return 0
+    }
+#=======================================================================
+#========================= archlist.sh (end) ==============================
+#
+#=======================================================================
+#
+# Functions:
+#
+#   scriptpath ()
+#   standalone_lm ()
+#
+#=======================================================================
+    scriptpath () { # Returns path of this script as a directory,
+                    # ROOTDIR, and command name, CMDNAME.
+		    #
+		    # Returns a 0 status unless an error occurred.
+		    #
+                    # usage: scriptpath
+                    #
+#
+	filename=$arg0_
+#
+# Now it is either a file or a link to a file.
+#
+        cpath=`pwd`
+#
+# Follow up to 8 links before giving up. Same as BSD 4.3
+#
+        n=1
+        maxlinks=8
+        while [ $n -le $maxlinks ]
+        do
+#
+# Get directory correctly!
+#
+	    newdir=`echo "$filename" | awk '
+                { tail = $0
+                  np = index (tail, "/")
+                  while ( np != 0 ) {
+                      tail = substr (tail, np + 1, length (tail) - np)
+                      if (tail == "" ) break
+                      np = index (tail, "/")
+                  }
+                  head = substr ($0, 1, length ($0) - length (tail))
+                  if ( tail == "." || tail == "..")
+                      print $0
+                  else
+                      print head
+                }'`
+	    if [ ! "$newdir" ]; then
+	        newdir="."
+	    fi
+	    if [ ! -d $newdir ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 1: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $arg0_"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+	    cd $newdir
+#
+# Need the function pwd - not the built in one
+#
+	    newdir=`/bin/pwd`
+#
+	    newbase=`expr //$filename : '.*/\(.*\)' \| $filename`
+            lscmd=`ls -l $newbase 2>/dev/null`
+	    if [ ! "$lscmd" ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 2: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+#
+# Check for link portably
+#
+	    if [ `expr "$lscmd" : '.*->.*'` -ne 0 ]; then
+	        filename=`echo "$lscmd" | awk '{ print $NF }'`
+	    else
+#
+# It's a file
+#
+	        dir="$newdir"
+	        CMDNAME="$newbase"
+	        LM_ROOTdefault=`/bin/pwd`
+	        break
+	    fi
+	    n=`expr $n + 1`
+        done
+        if [ $n -gt $maxlinks ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 3: More than $maxlinks links in path to'
+echo "                  this script. That's too many!"
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    return 1
+        fi
+        cd $cpath
+        return 0
+    }
+#=======================================================================
+    standalone_lm () { # If install_matlab does not exist in the
+		       # parent directory then it is standalone
+		       # and output a 1 else 0.
+		       #
+		       # Always returns 0 status.
+                       #
+                       # usage: standalone_lm
+                       #
+	if [ ! -f $LM_ROOTdefault/../install_matlab ]; then
+	    echo 1
+	else
+	    echo 0
+	fi
+	return 0
+    }
+#=======================================================================
+#
+# Determine the default license manager root directory (LM_ROOTdefault)
+# and the current directory (cpath)
+#
+    scriptpath
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+#
+# Verify input
+#
+    stat="OK"
+    msg=""
+#
+    daemon_wait_init=300
+#
+    help=
+    check_tcp_ports=
+    list_debuglog=
+    list_nlines=10
+    new_list_nlines=
+    verbose=
+    LM_SWITCHMODE=
+    daemon_wait=
+    licensefile=
+    logfile=
+    username=
+    arglist_lmgrd=
+    nargs=$#
+#
+    while [ "$stat" = "OK" -a $# -gt 0 ]; do
+	case "$1" in
+	    -h|-help)		# -help: Help option.
+	        help=1
+		stat=""
+		;;
+	    -k)
+		check_tcp_ports=1
+		;;
+	    -e)
+	        list_debuglog=1
+		if [ $# -gt 1 ]; then
+		    if [ "$2" != "-l" ]; then
+#
+# Check for number
+#
+		        t=`expr "//$2" : '//\([0-9]*\)$'`
+		        if [ "$t" != "" ]; then
+			    shift
+    			    list_nlines=$1
+			    new_list_nlines=1
+		        else
+			    shift
+			    msg='-e argument not a number'
+			    stat=""
+		        fi
+		    fi
+		fi
+		;;
+	    -v)
+	        verbose=1
+		;;
+	    -w)
+		LM_SWITCHMODE=1
+                echo "The -w option will be removed in a future release."
+                echo "Use lmstart without -w or use lmgrd directly."
+		;;
+	    -wait)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+#
+# Check for number
+#
+		    t=`expr "//$1" : '//\([0-9]*\)$'`
+		    if [ "$t" != "" ]; then
+                        daemon_wait=$1
+		    else
+			msg='wait argument not a number'
+			stat=""
+		    fi
+                fi
+                ;;
+	    -c)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+                    licensefile=$1
+                fi
+                ;;
+	    -l)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+                    logfile=$1
+                fi
+		;;
+	    -u)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+                    username=$1
+                fi
+		;;
+            -2)  #-2 -p option to disable lmdown
+                if [ $# -eq 1 ]; then
+                    msg='usage'
+                    stat=""
+                else
+                    if [ "$2" = "-p" ]; then
+                        arglist_lmgrd="$arglist_lmgrd -2 -p"
+                        shift
+                    else
+                        msg='usage'
+                        stat=""
+                    fi
+                fi
+                ;;
+            -p)  #-p -2 option to disable lmdown (same as -2 -p)
+                if [ $# -eq 1 ]; then
+                    msg='usage'
+                    stat=""
+                else
+                    if [ "$2" = "-2" ]; then
+                        arglist_lmgrd="$arglist_lmgrd -2 -p"
+                        shift
+                    else
+                        msg='usage'
+                        stat=""
+                    fi
+                fi
+                ;;
+            -x)  #-x option to disable lmdown or lmremove
+                if [ $# -eq 1 ]; then
+                    msg='usage'
+                    stat=""
+                else
+                    if [ "$2" = "lmdown" ]; then
+                        arglist_lmgrd="$arglist_lmgrd -x lmdown"
+                        shift
+                    elif [ "$2" = "lmremove" ]; then
+                        arglist_lmgrd="$arglist_lmgrd -x lmremove"
+                        shift
+                    else
+                        msg='usage'
+                        stat=""
+                    fi
+                fi
+                ;;
+            -*)
+                check_archlist argument=$1 noprint
+                if [ "$ARCH" = "" ]; then
+                    msg="-arch ($1) is invalid . . ."
+                    stat=""
+                fi
+                ;;
+	    *)
+                arglist_lmgrd="$arglist_lmgrd $1"
+                ;;
+	esac
+	shift
+    done
+#
+# Check for illegal option combination
+#
+    if [ "$msg" = "" ]; then
+        if [ "$help" != "" ]; then
+	    if [ "$nargs" = "1" ]; then
+	        :
+	    else
+	        msg="all other arguments ignored with help"
+	    fi
+        elif [ "$check_tcp_ports" != "" ]; then
+	    if [ "$nargs" != "1" ]; then
+	        msg="-k option can only be used alone"
+	        stat=""
+	    fi
+        elif [ "$list_debuglog" != "" ]; then
+	    if [ "$nargs" = "1" -o \( "$nargs" = "2" -a "$new_list_nlines" != "" \) \
+		 		-o \( "$nargs" = "3" -a "$logfile" != "" \) \
+		                -o \( "$nargs" = "4" -a "$new_list_nlines" != "" \
+						     -a "$logfile" != "" \) ]; then
+	        :
+	    else
+	        msg="illegal option(s) with -e"
+	        stat=""
+	    fi
+        fi
+    fi
+#
+    export help
+    export verbose
+    export LM_SWITCHMODE
+    export licensefile
+    export logfile
+    export username
+    export arglist_lmgrd
+#
+    if [ "$list_debuglog" != "" ]; then
+        ck_licensefile=0; export ck_licensefile
+        ck_writelogfile=0; export ck_writelogfile
+    else
+        ck_licensefile=1; export ck_licensefile
+        ck_writelogfile=1; export ck_writelogfile
+    fi
+#
+    if [ "$stat" = "" -o "$help" != "" ]; then
+	if [ "$msg" != "" ]; then
+#-----------------------------------------------------------------------
+    echo " "						>  /tmp/$$a
+    echo "    Error: $msg"				>> /tmp/$$a
+    echo " "						>> /tmp/$$a
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+(
+echo "------------------------------------------------------------------------"
+echo " "
+echo "    Usage: lmstart [-h|-help] | -k | -e [nlines] [-l debuglog] | [-arch]"
+echo "                              [-v] [-wait secs] [-c licensefile]"
+echo "                              [-l debuglog] [-u username] [-2 -p]"
+echo "                              [-x lmdown|lmremove] [lmgrd_options ...]"
+echo "   -------------------- " 
+echo "    -h|-help          - Help. Outputs the configuration"
+echo "                        information."
+echo "OR -------------------- " 
+echo "    -k                - Check that the tcp ports in the license"
+echo "                        file are free on the local host."
+echo "OR -------------------- "
+echo "    -e nlines         - List the last nlines of the debug logfile(s)."
+echo "                        DEFAULT: 10 lines"
+echo "    -l debuglog       - Path to FLEXnet debug logfile."
+echo "                        Set LM_LOGFILE and/or LM_LOGFILE_REDUNDANT"
+#-----------------------------------------------------------------------
+        if [ "`standalone_lm`" = "1" ]; then
+#-----------------------------------------------------------------------
+echo '                        in $LM_ROOT/lmopts.sh file.'
+#-----------------------------------------------------------------------
+	else
+#-----------------------------------------------------------------------
+echo '                        in $MATLAB/etc/lmopts.sh file.'
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+echo '                        DEFAULT: /var/tmp/lm_TMW.log'
+echo "OR --------------------"
+echo "    -arch             - Assume local host has architecture arch."
+echo "    -v                - Verbose listing. Outputs the configuration"
+echo "                        information."
+echo "    -wait secs        - Wait for secs seconds for MathWorks vendor"
+echo "                        daemon to come up. A minimum of 3 seconds"
+echo "                        and a maximum of 300 seconds are enforced."
+echo "                        DEFAULT: 300 seconds (this script only)"
+echo "    -c licensefile    - Path to license file."
+#-----------------------------------------------------------------------
+        if [ "`standalone_lm`" = "1" ]; then
+#-----------------------------------------------------------------------
+echo '                        DEFAULT: $LM_ROOT/license.dat'
+#-----------------------------------------------------------------------
+	else
+#-----------------------------------------------------------------------
+echo '                        DEFAULT: $MATLAB/etc/license.dat'
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+echo "    -l debuglog       - Path to FLEXnet debug logfile."
+echo "                        Set LM_LOGFILE and/or LM_LOGFILE_REDUNDANT"
+#-----------------------------------------------------------------------
+        if [ "`standalone_lm`" = "1" ]; then
+#-----------------------------------------------------------------------
+echo '                        in $LM_ROOT/lmopts.sh file.'
+#-----------------------------------------------------------------------
+	else
+#-----------------------------------------------------------------------
+echo '                        in $MATLAB/etc/lmopts.sh file.'
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+echo '                        DEFAULT: /var/tmp/lm_TMW.log'
+echo "    -u username       - Username to start/stop license manager."
+echo "                        Only useful at machine bootup time or if you"
+echo "                        are running as superuser."
+echo "                        DEFAULT: none"
+echo "    -2 -p             - Restricts usage of lmdown, lmreread, and"
+echo "                        lmremove to a FLEXnet administrator who is by"
+echo "                        default root. If there a Unix group called" 
+echo "                        'lmadmin' then use is restricted to only" 
+echo "                        members of that group. If root is not a member"
+echo "                        of this group, then root does not have permission"
+echo "                        to use any of the above utilities."
+echo "                        NOTE: This option only restricts the binary versions"
+echo "                        of the utililties listed above that are normally "
+echo "                        shipped with any FLEXnet distribution.  MathWorks"
+echo "                        ships these binary files (usually in "
+echo '                        $MATLAB/etc/$ARCH) and shell script wrapper functions'
+echo '                        (usually in $MATLAB/etc/) that use the binary '
+echo "                        utilities.  When run on the machine that is running "
+echo "                        the license manager, the shell script wrapper "
+echo "                        functions can still bring down the license manager if"
+echo "                        they are run by the same user that started the "
+echo "                        license manager, or if they are run by the root user."
+echo "                        The binary versions will not bring down the license "
+echo "                        manager when this option was used with lmstart."
+echo "    -x lmdown         - Disallow the lmdown command (no user can run lmdown)."
+echo "                        The note for option -2 -p also applies to this option."
+echo "    -x lmremove       - Disallow the lmremove command (no user can run lmremove)."
+echo "                        The note for option -2 -p also applies to this option."
+echo "    lmgrd_options     - Additional 'lmgrd' options to augment"
+echo "                        those of LM_ARGS_LMGRD. Do not use -z."
+echo " "
+echo "    Shuts down any currently running license daemons using lmdown"
+echo "    and starts (or restarts) the license manager and vendor"
+echo "    daemons using lmboot. It uses configuration information found"
+echo "    normally in the file,"
+echo " "
+        if [ "`standalone_lm`" = "1" ]; then
+#-----------------------------------------------------------------------
+echo '                   $LM_ROOT/lmopts.sh.'
+#-----------------------------------------------------------------------
+	else
+#-----------------------------------------------------------------------
+echo '                   $MATLAB/etc/lmopts.sh.'
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+echo " "
+echo "    Command line arguments can override some of this configuration"
+echo "    information."
+echo " "
+echo "------------------------------------------------------------------------"
+) >> /tmp/$$a
+#-----------------------------------------------------------------------
+	if [ "$help" = "1" ]; then
+	    verbose=1
+	    . $LM_ROOTdefault/util/setlmenv.sh >> /tmp/$$a
+	    more /tmp/$$a
+	else
+	    more /tmp/$$a
+	fi
+	rm -f /tmp/$$a
+        exit 1
+    fi
+#
+# Set the environment
+#
+    . $LM_ROOTdefault/util/setlmenv.sh
+#
+# Cannot start up license manager using port@host
+#
+    if [ "$LM_PORTATHOST" = "1" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo '    Error: Your license file is of the form port@host.'
+echo '           You cannot start the license manager using this form of'
+echo '           license file.' 
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	exit 1
+    fi
+#
+# Check the local tcp port usage by calling lmboot -k
+#
+    if [ "$check_tcp_ports" != "" ]; then
+        $LM_ROOT/lmboot -k
+        exit $?
+    fi
+#
+# List the end of the debug logfile
+#
+    if [ "$list_debuglog" != "" ]; then
+	if [ "$logfile" != "" ]; then
+            $LM_ROOT/lmboot -e $list_nlines -l $logfile
+	else
+            $LM_ROOT/lmboot -e $list_nlines
+	fi
+        exit $?
+    fi
+#
+# List out all comment lines
+#
+    (comment_lines $LM_FILE) > /tmp/$$a
+    if [ -s /tmp/$$a ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo 'The following lines in your license file were treated as comments . . .'
+echo 'Check that you do not have license lines split incorrectly across more'
+echo 'than one line.'
+echo '-----------------------------------------------------------------------'
+	more /tmp/$$a
+echo '-----------------------------------------------------------------------'
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo 'Checking license file for local hostname and local hostid . . .'
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    (righthost) > /tmp/$$a
+    if [ $? -ne 0 ]; then
+	echon ''
+	cat /tmp/$$a
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Please stop, fix the problem, and try again . . .'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	echon 'Continue to start up license manager? y/[n]) '
+	interactive
+        if [ $? -eq 0 ]; then
+            read ans
+            if [ `expr "//$ans" : '//[Yy].*'` -gt 0 ]; then
+	        rm -f /tmp/$$a
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        rm -f /tmp/$$a
+	        exit 1
+	    fi
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'y'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    rm -f /tmp/$$a
+	fi
+    elif [ -s /tmp/$$a ]; then
+	echon ''
+	cat /tmp/$$a
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Best to continue, and see what happens . . .'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	echon 'Continue to start up license manager? [y]/n) '
+	interactive
+        if [ $? -eq 0 ]; then
+            read ans
+            if [ `expr "//$ans" : '//[Nn].*'` -gt 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        rm -f /tmp/$$a
+	        exit 1
+	    else
+	        rm -f /tmp/$$a
+	    fi
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'y'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    rm -f /tmp/$$a
+	fi
+    else
+	rm -f /tmp/$$a
+    fi
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo 'Taking down any existing license manager daemons . . .'
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+    $LM_ROOT/lmdown -$ARCH -force
+    if [ $? -ne 0 ]; then
+	if [ "$LM_UTIL_MODE" = "1" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo '    Note: license manager did not come down properly . . .'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    exit 1
+	else
+	    echon 'Continue to start up license manager? [y]/n) ' 
+	    interactive
+            if [ $? -eq 0 ]; then
+                read ans
+                if [ `expr "//$ans" : '//[Nn].*'` -gt 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		    exit 1
+	        else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        fi
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'y'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+        fi
+    fi
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Starting license manager . . .'
+echo ' '
+echo "    Debug logfile = $LM_LOGFILE"
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+    $LM_ROOT/lmboot -$ARCH
+    if [ $? -ne 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo '    The license manager has not started properly.'
+echo '    Check the logfile for any error messages.'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	exit 1
+    else
+	interactive
+	if [ $? -ne 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo 'License manager up . . .'
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+    fi
+#
+    exit 0

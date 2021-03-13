@@ -1,0 +1,664 @@
+#!/bin/sh
+#
+#  Name:
+#
+#     lmdown   script file for shutting down the FLEXnet License Manager
+#
+#  Usage:
+#
+#     lmdown 	[-h|-help] [-arch] [-v] [-c licensefile]
+#			   [-force] [-l debuglog] [-u username]
+#
+#  Description:
+#
+#     This Bourne Shell script shuts down the FLEXnet License Manager
+#     used by MATLAB. It uses configuration information found normally
+#     in the file lmopts.sh
+#
+#     Command line arguments can override some of this configuration
+#     information.
+#
+#  Options:
+#
+#     -h | -help 	- help. Print usage.
+#
+#     -arch             - Assume local host has architecture arch.
+#
+#     -v                - Verbose listing. Outputs the configuration
+#			  information.
+#
+#     -c licensefile    - Path to license file.
+#
+#     -force            - Force shutdown of license server when there
+#                         are borrowed licenses checked out.
+#
+#     -l debuglog       - Path to FLEXnet debug logfile.
+#			  Makes sense only if originally used with
+#			  lmstart to override the value in the
+#			  lmopts.sh file.
+#			  DEFAULT: /var/tmp/lm_TMW.log
+#
+#     -u username       - Username to start/stop license manager.
+#                         Only useful at machine bootup time or if you
+#                         are running as superuser.
+#			  DEFAULT: none
+#
+# note(s):
+#
+#     1. This script executes without changing the current directory.
+#        This means that relative pathnames can be used in command
+#        options.
+#
+#  Copyright 1986-2018 The MathWorks, Inc.
+#-----------------------------------------------------------------------
+#23456789012345678901234567890123456789012345678901234567890123456789012
+#
+    arg0_=$0
+#
+    trap "exit 1" 1 2 3 15
+    trap "rm -rf /tmp/$$a /tmp/$$b > /dev/null 2>&1" 0
+#
+# Do not use ARCH if it exists in the environment
+#
+    if [ "$LM_SET_ENV" = "" -a "$ARCH" != "" ]; then
+        ARCH=""
+    fi
+#
+#========================= archlist.sh (start) ============================
+#
+# usage:        archlist.sh
+#
+# abstract:     This Bourne Shell script creates the variable ARCH_LIST.
+#
+# note(s):      1. This file is always imbedded in another script
+#
+# Copyright 1997-2013 The MathWorks, Inc.
+#----------------------------------------------------------------------------
+#
+    ARCH_LIST='glnxa64 maci64'
+#=======================================================================
+# Functions:
+#   check_archlist ()
+#=======================================================================
+    check_archlist () { # Sets ARCH. If first argument contains a valid
+			# arch then ARCH is set to that value else
+		        # an empty string. If there is a second argument
+			# do not output any warning message. The most
+			# common forms of the first argument are:
+			#
+			#     ARCH=arch
+			#     MATLAB_ARCH=arch
+			#     argument=-arch
+			#
+                        # Always returns a 0 status.
+                        #
+                        # usage: check_archlist arch=[-]value [noprint]
+                        #
+	if [ $# -gt 0 ]; then
+	    arch_in=`expr "$1" : '.*=\(.*\)'`
+	    if [ "$arch_in" != "" ]; then
+	        ARCH=`echo "$ARCH_LIST EOF $arch_in" | awk '
+#-----------------------------------------------------------------------
+	{ for (i = 1; i <= NF; i = i + 1)
+	      if ($i == "EOF")
+		  narch = i - 1
+	  for (i = 1; i <= narch; i = i + 1)
+		if ($i == $NF || "-" $i == $NF) {
+		    print $i
+		    exit
+		}
+	}'`
+#-----------------------------------------------------------------------
+	       if [ "$ARCH" = "" -a $# -eq 1 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo "    Warning: $1 does not specify a valid architecture - ignored . . ."
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	       fi
+	    else
+		ARCH=""
+	    fi
+	else
+	    ARCH=""
+	fi
+#
+	return 0
+    }
+#=======================================================================
+#========================= archlist.sh (end) ==============================
+#
+#=======================================================================
+#
+# Functions:
+#
+#   fix_pidinfo ()
+#   killpids ()
+#   reorder_pidinfo
+#   scriptpath ()
+#   timestamp ()
+#
+#=======================================================================
+    fix_pidinfo () { # This is a filter which takes the raw
+		     # pidinfo lines and fixes any fields.
+		     #
+		     # Always returns a 0 status.
+		     #
+                     # usage: fix_pidinfo
+                     #
+	while read pid pname
+	do
+            if [ "$pname" = "$LM_RUN_DIR/$LM_MARKER.ld" ]; then
+		echo "$pid lmgrd"
+	    elif [ "$pname" != "MLM" ]; then
+	        # kiling lmgrd will shut down MLM so filter it
+		# out here by never echoing it.
+		echo "$pid $pname"
+	    fi
+	done
+        return 0
+    }
+#=======================================================================
+    killpids () { # Reads psfile for ps information. Writes
+		  # messages to standard output as well as LM_LOGFILE.
+		  #
+		  # The process list is in the correct order. Normally
+		  # this is in increasing sorted order. This may not be
+		  # true. For example, on the alpha this is not true.
+		  # lmgrd's have been moved ahead of the vendor daemons
+		  # before this is called because lmgrd must be killed
+		  # before any vendor daemons!
+		  #
+		  # Always check first if already killed.
+		  #
+		  # Always returns a status of 0.
+		  #
+		  # Note: You must save standard output and look for
+		  #       'Error:' to determine if there was a problem.
+		  #
+                  # usage: killpids psfile
+                  #
+	psfile=$1
+	signal=-15
+	killedlmgrd=0
+        if [ -s /var/tmp/MLMborrow -a "$force_down" != "" ]; then
+	    # Only use -9 if there are no borrowed keys.  When -9 is
+	    # used, the ports don't clear up as fast and may cause problems
+	    # starting lmgrd.  If there are borrowed keys, -15 might not work.
+	    signal=-9
+	fi
+	(while read pid pname
+	 do
+	    process_exist $pid
+	    if [ $? -eq 0 ];  then
+		msg=`kill $signal $pid 2>&1`
+	        if [ "$msg" ]; then
+#
+# Ignore any message from pname = 'su'. On bootup root may own it and
+# if the owner is wrong on take down the problem will show up with the
+# other pids. Also the su process will die automatically when it's child
+# is killed.
+#
+		    if [ "$pname" = "su" ]; then
+			continue
+		    fi
+		    interactive
+		    if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "    Error: message returned by 'kill $signal' for process id = $pid ($pname)"
+echo "           $msg"
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		    fi
+	        else
+		    interactive
+		    if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	echo $pid $pname | awk '
+	    { printf "    process id = %6d killed . . . (%s)\n", $1, $2 }'
+		    fi
+echo "`timestamp` (lmdown) [MathWorks] process id = $pid . . . ($pname) - killed" >> $LM_LOGFILE
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		fi
+		# The first process we kill is always lmgrd so sleep for one 
+		# second to give some time for all the other processes to exit.
+		# Sometimes the processes exit after we call process_exist
+		# which causes kill to error, so this delay should give everthing
+		# time to exit cleanly.
+		if [ $killedlmgrd -eq 0 ]; then
+	            killedlmgrd=1
+		    sleep 1
+		fi
+	    fi
+	done) < $psfile
+        return 0
+    }
+#=======================================================================
+    reorder_pidinfo () { # This is a filter which takes the raw
+		         # pidinfo lines and reorders the lines. First
+		         # it sorts them in increasing pid and then
+			 # moves all lmgrd's to the top.
+		         #
+		         # Always returns a 0 status.
+		         #
+                         # usage: reorder_pidinfo
+                         #
+
+	sort -n -k 1,1 | awk '
+#--------------------------------------------------------------------------
+    BEGIN { nlmgrd = 0; nnolmgrd = 0 }
+    $2 == "lmgrd" { nlmgrd = nlmgrd + 1
+		    a[nlmgrd] = $0
+		    next
+		  }
+                  { nnolmgrd = nnolmgrd + 1
+		    b[nnolmgrd] = $0
+		  }
+   END { for (i = 1; i <= nlmgrd; i = i + 1) print a[i]
+	 for (i = 1; i <= nnolmgrd; i = i + 1) print b[i] }'
+#--------------------------------------------------------------------------
+	return 0
+    }
+#=======================================================================
+    scriptpath () { # Returns path of this script as a directory,
+                    # ROOTDIR, and command name.
+		    #
+		    # Returns a 0 status unless an error occurred.
+		    #
+                    # usage: scriptpath
+                    #
+#
+	filename=$arg0_
+#
+# Now it is either a file or a link to a file.
+#
+        cpath=`pwd`
+#
+# Follow up to 8 links before giving up. Same as BSD 4.3
+#
+        n=1
+        maxlinks=8
+        while [ $n -le $maxlinks ]
+        do
+#
+# Get directory correctly!
+#
+	    newdir=`echo "$filename" | awk '
+                { tail = $0
+                  np = index (tail, "/")
+                  while ( np != 0 ) {
+                      tail = substr (tail, np + 1, length (tail) - np)
+                      if (tail == "" ) break
+                      np = index (tail, "/")
+                  }
+                  head = substr ($0, 1, length ($0) - length (tail))
+                  if ( tail == "." || tail == "..")
+                      print $0
+                  else
+                      print head
+                }'`
+	    if [ ! "$newdir" ]; then
+	        newdir="."
+	    fi
+	    if [ ! -d $newdir ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 1: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $arg0_"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+	    cd $newdir
+#
+	    newbase=`expr //$filename : '.*/\(.*\)' \| $filename`
+            lscmd=`ls -l $newbase 2>/dev/null`
+	    if [ ! "$lscmd" ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 2: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+#
+# Check for link portably
+#
+	    if [ `expr "$lscmd" : '.*->.*'` -ne 0 ]; then
+	        filename=`echo "$lscmd" | awk '{ print $NF }'`
+	    else
+#
+# It's a file
+#
+	        LM_ROOTdefault=`/bin/pwd`
+	        break
+	    fi
+	    n=`expr $n + 1`
+        done
+        if [ $n -gt $maxlinks ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 3: More than $maxlinks links in path to'
+echo "                  this script. That's too many!"
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    return 1
+        fi
+        cd $cpath
+        return 0
+    }
+#=======================================================================
+    timestamp () { # Returns the time of the current day on standard
+		   # output. Remove any leading zero.
+		   #
+		   # Sample: FLEXnet debug logfile entry
+		   #
+		   # 11:03:08 (lmgrd) TIMESTAMP 11/1/96
+		   #
+		   # Always returns a 0 status.
+		   #
+                   # usage: timestamp
+                   #
+        echo `date '+%T'` | awk '
+    { if (substr($1,1,1) == "0") print substr($1,2); else print $1 }'
+        return 0
+    }
+#=======================================================================
+#
+# Determine the default license manager root directory (LM_ROOTdefault)
+# and the current directory (cpath)
+#
+    scriptpath
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+#
+# Verify input
+#
+    stat="OK"
+    msg=""
+#
+    help=
+    verbose=
+    LM_SWITCHMODE=
+    licensefile=
+    logfile=
+    username=
+    arglist_lmgrd=
+    force_down=
+#
+    while [ "$stat" = "OK" -a $# -gt 0 ]; do
+	case "$1" in
+	    -h|-help)		# -help: Help option.
+	        help=1
+		;;
+	    -v)
+	        verbose=1
+		;;
+	    -w)
+		LM_SWITCHMODE=1
+		;;
+	    -c)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+                    licensefile=$1
+                fi
+                ;;
+	    -force)
+    		force_down="-force"
+                ;;
+	    -l)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+                    logfile=$1
+                fi
+		;;
+	    -u)
+                if [ $# -eq 1 ]; then
+		    msg='usage'
+                    stat=""
+                else
+                    shift
+                    username=$1
+                fi
+		;;
+            -*)
+                check_archlist argument=$1 noprint
+                if [ "$ARCH" = "" ]; then
+		    msg="-arch ($1) is invalid . . ."
+                    stat=""
+                fi
+                ;;
+	    *)
+                stat=""
+                ;;
+	esac
+	shift
+    done
+#
+    export help
+    export verbose
+    export LM_SWITCHMODE
+    export licensefile
+    export logfile
+    export username
+    export arglist_lmgrd
+#
+    ck_licensefile=1; export ck_licensefile
+    ck_writelogfile=1; export ck_writelogfile
+#
+    if [ "$stat" = "" -o "$help" != "" ]; then
+	if [ "$msg" != "" ]; then
+#-----------------------------------------------------------------------
+    echo " "
+    echo "    Error: $msg"
+    echo " "
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+(
+echo "------------------------------------------------------------------------"
+echo " "
+echo "    Usage: lmdown  [-h|-help] [-arch] [-v] [-c licensefile]"
+echo "                              [-force] [-l debuglog] [-u username]"
+echo " "
+echo "    -h|-help          - Help."
+echo "    -arch             - Assume local host has architecture arch."
+echo "    -v                - Verbose listing. Outputs the configuration"
+echo "                        information."
+echo "    -c licensefile    - Path to license file."
+echo "    -force            - Force shutdown of license server when there"
+echo "                        are borrowed licenses checked out."
+echo "    -l debuglog       - Path to FLEXnet debug logfile."
+echo "                        Makes sense only if originally used with"
+echo "                        lmstart to override the value in the"
+echo "                        lmopts.sh file."
+echo '                        DEFAULT: /var/tmp/lm_TMW.log'
+echo "    -u username       - Username to start/stop license manager."
+echo "                        Only useful at machine bootup time or if you"
+echo "                        are running as superuser."
+echo "                        DEFAULT: none"
+echo " "
+echo "    Shuts down any currently running FLEXnet license daemons used by"
+echo "    MATLAB. It uses configuration information found normally in the"
+echo "    file lmopts.sh"
+echo " "
+echo "    Command line arguments can override some of this configuration"
+echo "    information."
+echo " "
+echo "------------------------------------------------------------------------"
+) > /tmp/$$a
+#-----------------------------------------------------------------------
+	if [ "$help" = "1" ]; then
+	    verbose=1
+	    . $LM_ROOTdefault/util/setlmenv.sh >> /tmp/$$a
+	fi
+	more /tmp/$$a
+	rm -f /tmp/$$a
+        exit 1
+    fi
+#
+# Set the environment
+#
+    . $LM_ROOTdefault/util/setlmenv.sh
+#
+# Allow port@host
+#
+    if [ "$LM_UTIL_MODE" != "1" -o "$LM_PORTATHOST" = "1" ]; then
+#
+        interactive
+	if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+	$LM_ROOT/$ARCH/lmdown -c $LM_START_FILE $force_down
+	if [ $? -ne 0 ]; then
+	    interactive
+	    if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo '    Error: (Flexera mode) lmdown exited with an error . . .'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	    exit 1
+	else
+	    if [ "$LM_UTIL_MODE" = "1" ]; then
+		cleanup
+	    fi
+	fi
+        interactive
+	if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+	exit 0
+    else
+#
+# MathWorks mode
+#
+	# Now shut down the licens manager
+	getpidinfo "($LM_RUN_DIR/$LM_MARKER)" | fix_pidinfo | reorder_pidinfo > /tmp/$$a
+	getpidinfo "($LM_ROOT/lmboot)" >> /tmp/$$a
+	if [ $? -ne 0 ]; then
+	    exit 1
+	fi
+        npids=`wc -l /tmp/$$a | awk '{ print $1 }'`
+        npids=`expr "$npids" + 0`
+        if [ $npids -ne 0 ]; then
+#
+# kill the daemons - include hostname to remind the user.
+#
+ 	    # First check for borrowed licenses.
+	    if [ -s /var/tmp/MLMborrow -a "$force_down" = "" ]; then
+	        # If there are borrowed licenses and -force was not passed in
+		# then issue and error and exit.
+	        echo ""
+	        echo "Shutdown failed: Cannot lmdown the server when licenses are borrowed."
+                echo "If you are on the same host as the server,"
+                echo "you need to use -force argument to lmdown."
+                echo "Shutdown cannot be done from any other host."
+	        echo ""
+
+	        exit 1
+	    fi
+
+            (cat /dev/null >> $LM_LOGFILE) 2>/dev/null
+            if [ $? -ne 0 ]; then
+                badlogfilemsg $LM_LOGFILE 'LM_LOGFILE'
+                exit 1
+	    else
+                if [ ! -s $LM_LOGFILE ]; then
+                    rm -f $LM_LOGFILE 
+                fi
+            fi
+#
+            trap "" 1 2 3 15
+            interactive
+	    if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo "    Killing license manager daemon processes . . . (`hostname`)"
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	    killpids /tmp/$$a > /tmp/$$b
+	    cat /tmp/$$b
+#
+# Check file /tmp/$$b for errors
+#
+	    grep 'Error:' /tmp/$$b > /dev/null 2>&1
+	    if [ $? -eq 0 ]; then
+                interactive
+	        if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		fi
+		rm -f /tmp/$$a /tmp/$$b > /dev/null 2>&1
+	        exit 1
+	    else
+		cleanup
+	    fi
+	    interactive
+	    if [ $? -ne 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo 'License manager down . . .'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	else
+            interactive
+	    if [ $? -eq 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo '    No license manager daemons running . . .'
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	fi
+    fi
+    rm -f /tmp/$$a /tmp/$$b > /dev/null 2>&1
+    exit 0
