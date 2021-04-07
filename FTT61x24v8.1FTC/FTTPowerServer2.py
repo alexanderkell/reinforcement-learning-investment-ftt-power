@@ -11,6 +11,7 @@ import os
 import ray
 from ray.rllib.agents.dqn import DQNTrainer
 from ray.rllib.agents.ppo import PPOTrainer
+from ray.rllib.agents.ddpg import DDPGTrainer
 from ray.rllib.env.policy_server_input import PolicyServerInput
 from ray.tune.logger import pretty_print
 from gym.spaces import Box, Discrete, MultiDiscrete
@@ -43,12 +44,12 @@ class AdderServing(gym.Env):
 if __name__ == "__main__":
     # SERVER_ADDRESS = "localhost"
     SERVER_ADDRESS = "127.0.0.1"
-    SERVER_PORT = 9910
+    SERVER_PORT = 9912
     args = parser.parse_args()
     args.run = "PPO"
     ray.init()
     # action_space = MultiDiscrete(50)
-    action_space = Box(low=0, high=1, shape=(326,), dtype=np.float)
+    action_space = Box(low=0, high=0.05, shape=(326,), dtype=np.float)
     observation_space = Box(low=0, high=99999999, shape=(11,), dtype=np.float)
     register_env("srv", lambda config: AdderServing(action_space, observation_space))
     connector_config = {
@@ -62,46 +63,72 @@ if __name__ == "__main__":
         "input_evaluation": [],
     }
 
-    if args.run == "DQN":
-        # Example of using DQN (supports off-policy actions).
-        trainer = DQNTrainer(
-            env='srv',
-            config=dict(
-                connector_config, **{
-                    "exploration_config": {
-                        "type": "EpsilonGreedy",
-                        "initial_epsilon": 1.0,
-                        "final_epsilon": 0.02,
-                        "epsilon_timesteps": 1000,
-                    },
-                    "learning_starts": 100,
-                    "timesteps_per_iteration": 200,
-                    "log_level": "INFO",
-                }))
-    elif args.run == "PPO":
+    # if args.run == "DDPG":
         # Example of using PPO (does NOT support off-policy actions).
-        trainer = PPOTrainer(
-            env='srv',
-            config=dict(
-                connector_config, **{
-                    "sample_batch_size": 1000,
-                    "train_batch_size": 4000,
-                }))
-    else:
-        raise ValueError("--run must be DQN or PPO")
+    trainer = DDPGTrainer(
+        env='srv',
+        config=dict(
+            connector_config, **{
+                "sample_batch_size": 10000,
+                "train_batch_size": 40000,
+            }))
+    # elif args.run == "DQN":
+    #     # Example of using DQN (supports off-policy actions).
+    #     trainer = DQNTrainer(
+    #         env='srv',
+    #         config=dict(
+    #             connector_config, **{
+    #                 "exploration_config": {
+    #                     "type": "EpsilonGreedy",
+    #                     "initial_epsilon": 1.0,
+    #                     "final_epsilon": 0.02,
+    #                     "epsilon_timesteps": 1000,
+    #                 },
+    #                 "learning_starts": 100,
+    #                 "timesteps_per_iteration": 200,
+    #                 "log_level": "INFO",
+    #             }))
+    # elif args.run == "PPO":
+    #     # Example of using PPO (does NOT support off-policy actions).
+    #     trainer = PPOTrainer(
+    #         env='srv',
+    #         config=dict(
+    #             connector_config, **{
+    #                 "sample_batch_size": 1000,
+    #                 "train_batch_size": 4000,
+    #             }))
+    # else:
+    #     raise ValueError("--run must be DQN or PPO")
 
-    checkpoint_path = CHECKPOINT_FILE.format(args.run)
+    # checkpoint_path = CHECKPOINT_FILE.format(args.run)
+    # checkpoint_path = 'RL_Checkpoints/21-May-2020/checkpoint-460.pickle'
+    # checkpoint_path_meta = "RL_Checkpoints/21-May-2020/checkpoint-460"
 
-    # # Attempt to restore from checkpoint if possible.
-    # if os.path.exists(checkpoint_path):
-    #     checkpoint_path = open(checkpoint_path).read()
-    #     print("Restoring from checkpoint path", checkpoint_path)
-    #     trainer.restore(checkpoint_path)`
+
+    # checkpoint_path = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_458/checkpoint-458.pickle"
+    # checkpoint_path_meta = "../../../../../ray_results/DDPG_srv_2020-05-21_18-26-289tv41p5j/checkpoint_458/checkpoint-458"
+    # Attempt to restore from checkpoint if possible.
+    checkpoint_path = "start_afresh"
+    import pickle
+    if os.path.exists(checkpoint_path):
+        # checkpoint_path = open(checkpoint_path).read()
+        # print("Restoring from checkpoint path", checkpoint_path)
+        # trainer.restore(checkpoint_path)
+        # checkpoint_path = open(checkpoint_path).read()
+        checkpoint_path = pickle.load(open(checkpoint_path, "rb"))
+        # print("Restoring from checkpoint path", checkpoint_path)
+        print("Trying to restore")
+        trainer.restore(checkpoint_path_meta)
+        print("Restored")
+        # open("../../data/raw/pickled_data/{}_restuarants_data.p".format(self.postcode,),
+
+
 
     # Serving and training loop
     while True:
         print(pretty_print(trainer.train()))
         checkpoint = trainer.save()
+        checkpoint_path_save = CHECKPOINT_FILE.format(args.run)
         print("Last checkpoint", checkpoint)
-        with open(checkpoint_path, "w") as f:
-            f.write(checkpoint)
+        with open(checkpoint_path_save, "w") as f:
+            f.write(checkpoint_path_save)

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<productData>
+  <altDependencies />
+  <dependsOn>
+    <component>
+      <name>license_manager_licenses_common</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>glnxa64</platform>
+        <platform>maci64</platform>
+        <platform>win64</platform>
+      </platformList>
+      <version>1596016234</version>
+    </component>
+    <component>
+      <name>matlab_license_common</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>glnxa64</platform>
+        <platform>maci64</platform>
+        <platform>win64</platform>
+      </platformList>
+      <version>1596016402</version>
+    </component>
+    <component>
+      <name>version_info_common</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>glnxa64</platform>
+        <platform>maci64</platform>
+        <platform>win64</platform>
+      </platformList>
+      <version>1610063404</version>
+    </component>
+    <component>
+      <name>3p/flexnet_license_server_common</name>
+      <instrset>0</instrset>
+      <locale />
+      <platformList>
+        <platform>glnxa64</platform>
+        <platform>maci64</platform>
+        <platform>win64</platform>
+      </platformList>
+      <version>1596001218</version>
+    </component>
+  </dependsOn>
+  <installerUsage>
+    <usage>professional</usage>
+  </installerUsage>
+  <isControllingProduct>false</isControllingProduct>
+  <licenseAgreementType />
+  <platformList>
+    <platform>glnxa64</platform>
+    <platform>maci64</platform>
+    <platform>win64</platform>
+  </platformList>
+  <productBaseCode />
+  <productName>Network License Manager</productName>
+  <productNumber>0</productNumber>
+  <productType>licensedProduct</productType>
+  <productVersion>11.16.2.1</productVersion>
+  <releaseDescription>R2020b</releaseDescription>
+  <releaseFamily>R2020b</releaseFamily>
+  <requiredProducts />
+</productData>
+

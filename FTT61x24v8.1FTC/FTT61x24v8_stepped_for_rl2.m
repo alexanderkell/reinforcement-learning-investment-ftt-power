@@ -305,7 +305,7 @@ counter = 0;
 for k = [7, 15] % Ireland and UK only
     %Before 2013 (up to 2012)
     counter = counter + 1;
-    writematrix(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),'HG-3NWR.csv')
+%     writematrix(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),'HG-3NWR.csv')
     HG(:,counter,1:HN) = permute(HistoricalG(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2]);
     HE(:,counter,1:HN) = permute(HistoricalE(7+(k-1)*27:30+(k-1)*27,4:47),[1 3 2])/1000; %Factor 1000 IEA Mt -> Gt
     %From 2013 to 2017 quarterly
@@ -606,8 +606,19 @@ for k = 1:NWR
     CF(G(:,k,t)~=0 & CF(:,k,t)==0,k,t) = CF0(G(:,k,t)~=0 & CF(:,k,t)==0,k);
 end
 
+
 % AJMK: Loop through each year
 for t = 17:N
+    counter = 1;
+%     if t == 17  % t == ceil((N-17)/2)
+%     if t == 17 || t == 47 || t == 77 || t == 107 || t == 137
+%     if t == 17 || t== 32 || t == 47 || t == 62 || t == 77 || t == 92 || t == 107 || t == 122 || t == 137 
+    if mod(t-1, 4) == 0
+        counter = counter + 1;
+        action = client.get_action(eid, obs);
+        action = double(action);
+% 	writematrix(action, "action.csv")
+    end
 %     if mod(t,4)==0
 %         if ~ishandle(hw)
 %             break;
@@ -619,10 +630,11 @@ for t = 17:N
     %isReg = (.5 + .5*tanh(1.25*(U(:,:,t-1)-REG(:,:,t))./U(:,:,t-1))).*(REG(:,:,t) >= 0);
     isReg = (REG(:,:,t) > 0).*(1 + tanh(2*1.25*(U(:,:,t-1)-REG(:,:,t))./REG(:,:,t)));
     isReg(REG(:,:,t) == 0) = 1;
-    
-    counter = 1;
-    action = client.get_action(eid, obs);
-    action = double(action);
+
+%     For making decisions at every time step     
+%     counter = 1;
+%     action = client.get_action(eid, obs);
+%     action = double(action);
     % Loop through each world region
     for k = 1:NWR
 %     for k = [7, 15] % Ireland and UK only
@@ -633,6 +645,7 @@ for t = 17:N
             %!Components of the constraints matrix Gij
             Gmax(i) = tanh(1.25*(Shat(i,k,t-1)-S(i,k,t-1))/Gb(i,k));
             Gmin(i) = tanh(1.25*(-(Shat2(i,k,t-1)-S(i,k,t-1))/Gb(i,k)));
+%             [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, action, counter);
             [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i, k, action, counter);
         end
         % !Add exogenous capacity changes (if any) and correct for regulations:
@@ -858,9 +871,11 @@ function [dSij, counter] = get_dSji(t, MWKA, dSij, S, TLCOEg, dt, dTLCOE, Unc, i
 %                 dSij(j,i,k) = -dSij(i,j,k);
                 
 %                 action = client.get_action(eid, obs);
+%                 counter
+%                 action(counter)
                 dSij(i,j,k) = action(counter);
                 dSij(j,i,k) = -dSij(i,j,k);
-                counter = counter + 1;
+%                 counter = counter + 1;
             end
         end
     end

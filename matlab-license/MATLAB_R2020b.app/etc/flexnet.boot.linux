@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# MATLAB FLEXnet Network License Manager Daemon
+#
+# 	For boot-time initialization on Linux
+#
+# Steps: (as root)
+#
+#    1. If the following links do not exist create them:
+#
+#       ln -s $MATLAB/etc/lmboot /etc/lmboot_TMW
+#       ln -s $MATLAB/etc/lmdown /etc/lmdown_TMW
+#    
+#    2. Replace CHANGE_USER_NAME argument to the lmboot_TMW 
+#	command below by a real usename OTHER than root!
+#
+#    3. Follow the instructions in the Installation Guide for
+#       setting up the boot scripts.
+#
+case "$1" in
+  start)
+        if [ -f /etc/lmboot_TMW ]; then
+            /etc/lmboot_TMW -u CHANGE_USER_NAME && echo 'MATLAB_lmgrd'
+        fi
+        ;;
+  stop)
+	if [ -f /etc/lmdown_TMW ]; then
+            /etc/lmdown_TMW  > /dev/null 2>&1
+	fi
+        ;;
+  *)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+	;;
+esac
+
+exit 0

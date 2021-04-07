@@ -1,0 +1,877 @@
+#!/bin/sh
+#
+#  Name:
+#
+#     lmdebug   creates a log of diagnostic information about the
+#		license manager and the MATLAB system environment
+#     
+#  Usage:
+#
+#     lmdebug 	[-h|-help] [-arch] [lmdebug_log]
+#
+#  Description:
+#
+#     This Bourne Shell script creates a log of diagnostic information
+#     about the FLEXnet license manager used by MATLAB. It
+#     uses configuration information found normally in the file,
+#
+#		       $MATLAB/etc/lmopts.sh
+#
+#  Options:
+#
+#     -h | -help 	- Help. Print usage.
+#
+#     -arch             - Assume local host has architecture arch.
+#
+#     lmdebug_log	- Path to the lmdebug logfile.
+#			  DEFAULT: ./lmdebug.out
+#
+# note(s):
+#
+#     1. This script executes without changing the current directory.
+#        This means that relative pathnames can be used in command
+#        options.
+#
+#  Copyright 1986-2017 The MathWorks, Inc.
+#-----------------------------------------------------------------------
+#23456789012345678901234567890123456789012345678901234567890123456789012
+#
+    arg0_=$0
+#
+    trap "rm -rf /tmp/$$a /tmp/$$b > /dev/null 2>&1; exit 1" 1 2 3 15
+#
+# Do not use ARCH if it exists in the environment
+#
+    if [ "$LM_SET_ENV" = "" -a "$ARCH" != "" ]; then
+        ARCH=""
+    fi
+#
+#========================= archlist.sh (start) ============================ 
+#
+# usage:        archlist.sh
+#
+# abstract:     This Bourne Shell script creates the variable ARCH_LIST.
+#
+# note(s):      1. This file is always imbedded in another script
+#
+# Copyright 1997-2013 The MathWorks, Inc.
+#----------------------------------------------------------------------------
+#
+    ARCH_LIST='glnxa64 maci64'
+#=======================================================================
+# Functions:
+#   check_archlist ()
+#=======================================================================
+    check_archlist () { # Sets ARCH. If first argument contains a valid
+			# arch then ARCH is set to that value else
+		        # an empty string. If there is a second argument
+			# do not output any warning message. The most
+			# common forms of the first argument are:
+			#
+			#     ARCH=arch
+			#     MATLAB_ARCH=arch
+			#     argument=-arch
+			#
+                        # Always returns a 0 status.
+                        #
+                        # usage: check_archlist arch=[-]value [noprint]
+                        #
+	if [ $# -gt 0 ]; then
+	    arch_in=`expr "$1" : '.*=\(.*\)'`
+	    if [ "$arch_in" != "" ]; then
+	        ARCH=`echo "$ARCH_LIST EOF $arch_in" | awk '
+#-----------------------------------------------------------------------
+	{ for (i = 1; i <= NF; i = i + 1)
+	      if ($i == "EOF")
+		  narch = i - 1
+	  for (i = 1; i <= narch; i = i + 1)
+		if ($i == $NF || "-" $i == $NF) {
+		    print $i
+		    exit
+		}
+	}'`
+#-----------------------------------------------------------------------
+	       if [ "$ARCH" = "" -a $# -eq 1 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo "    Warning: $1 does not specify a valid architecture - ignored . . ."
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	       fi
+	    else
+		ARCH=""
+	    fi
+	else
+	    ARCH=""
+	fi
+#
+	return 0
+    }
+#=======================================================================
+#========================= archlist.sh (end) ============================== 
+#
+#=======================================================================
+#
+# Functions:
+#
+#   check_lmdebug_log ()
+#   print_lmhostid ()
+#   scriptpath ()
+#
+#=======================================================================
+    check_lmdebug_log () { # Check that you can write into the lmdebug
+                           # logfile.
+			   #
+			   # Returns 0 status if yes else 1.
+                           #
+                           # usage: check_lmdebug_log
+                           #
+	rm -f $LM_LMDEBUG_LOG > /dev/null 2>&1
+	if [ -f $LM_LMDEBUG_LOG ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo '    Error: Cannot delete logfile ($LM_LMDEBUG_LOG).'
+echo ' '
+echo "           LM_LMDEBUG_LOG = $LM_LMDEBUG_LOG"
+echo ' '
+echo "                            `llsfile $LM_LMDEBUG_LOG`"
+echo ' '
+echo "           You are:     `displayid`"
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    return 1
+	fi
+	(cat /dev/null >> $LM_LMDEBUG_LOG) 2>/dev/null
+        if [ $? -ne 0 ]; then
+	    badlogfilemsg $LM_LMDEBUG_LOG 'LM_LMDEBUG_LOG'
+            return 1
+	fi
+	return 0
+    }
+#=======================================================================
+    print_lmhostid () { # Output the lmhostid(s). 
+			# Prints out default hostid, hostname hostid,
+			# and IP address hostid.
+			#
+                        # Always returns 0 status.
+                        #
+                        # usage: print_lmhostid 
+                        #
+#
+# Get the local hostid by calling lmhostid.
+#
+        localhostid=`$LM_ROOT/lmhostid -$ARCH -n`
+        localhostid_hostname=`$LM_ROOT/lmhostid -$ARCH -n -hostname`
+        localhostid_internet=`$LM_ROOT/lmhostid -$ARCH -n -internet`
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    echo "$localhostid"
+    echo "$localhostid_hostname"
+    echo "$localhostid_internet"
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	return 0
+    }
+#=======================================================================
+    scriptpath () { # Returns path of this script as a directory,
+                    # ROOTDIR, and command name, CMDNAME.
+                    #
+                    # Returns a 0 status unless an error occurred.
+                    #
+                    # usage: scriptpath
+                    #
+#
+	filename=$arg0_
+#
+# Now it is either a file or a link to a file.
+#
+        cpath=`pwd`
+#
+# Follow up to 8 links before giving up. Same as BSD 4.3
+#
+        n=1
+        maxlinks=8
+        while [ $n -le $maxlinks ]
+        do
+#
+# Get directory correctly!
+#
+	    newdir=`echo "$filename" | awk '
+                { tail = $0
+                  np = index (tail, "/")
+                  while ( np != 0 ) {
+                      tail = substr (tail, np + 1, length (tail) - np)
+                      if (tail == "" ) break
+                      np = index (tail, "/")
+                  }
+                  head = substr ($0, 1, length ($0) - length (tail))
+                  if ( tail == "." || tail == "..")
+                      print $0
+                  else
+                      print head
+                }'`
+	    if [ ! "$newdir" ]; then
+	        newdir="."
+	    fi
+	    (cd $newdir) > /dev/null 2>&1
+	    if [ $? -ne 0 ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 1: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $arg0_"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+	    cd $newdir
+#
+# Need the function pwd - not the built in one
+#
+	    newdir=`/bin/pwd`
+#
+	    newbase=`expr //$filename : '.*/\(.*\)' \| $filename`
+            lscmd=`ls -l $newbase 2>/dev/null`
+	    if [ ! "$lscmd" ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 2: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+#
+# Check for link portably
+#
+	    if [ `expr "$lscmd" : '.*->.*'` -ne 0 ]; then
+	        filename=`echo "$lscmd" | awk '{ print $NF }'`
+	    else
+#
+# It's a file
+#
+	        dir="$newdir"
+	        CMDNAME="$newbase"
+	        LM_ROOTdefault=`/bin/pwd`
+	        break
+	    fi
+	    n=`expr $n + 1`
+        done
+        if [ $n -gt $maxlinks ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 3: More than $maxlinks links in path to'
+echo "                  this script. That's too many!"
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    return 1
+        fi
+        cd $cpath
+        return 0
+    }
+#=======================================================================
+#
+# Determine the default license manager root directory (LM_ROOTdefault)
+# and the current directory (cpath)
+#
+    scriptpath
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+#
+# Verify input
+#
+    stat="OK"
+    msg=""
+#
+    help=
+    lmdebug_log=
+#
+    while [ "$stat" = "OK" -a $# -gt 0 ]; do
+	case "$1" in
+	    -h|-help)		# -help: Help option.
+	        help=1
+		;;
+	    -*)
+                check_archlist argument=$1 noprint
+                if [ "$ARCH" = "" ]; then
+		    msg="-arch ($1) is invalid . . ."
+                    stat=""
+                fi
+		;;
+
+	    *)
+                if [ $# -ne 1 ]; then
+		    msg='usage'
+		    stat=""
+		else
+		    lmdebug_log=$1
+		fi
+                ;;
+	esac
+	shift
+    done
+#
+    export help
+    export lmdebug_log
+#
+    ck_licensefile=0; export ck_licensefile
+    ck_writelogfile=0; export ck_writelogfile
+#
+    if [ "$stat" = "" -o "$help" != "" ]; then
+	if [ "$msg" != "" ]; then
+#-----------------------------------------------------------------------
+    echo " "
+    echo "    Error: $msg"
+    echo " "
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+echo "------------------------------------------------------------------------"
+echo " "
+echo "    Usage: lmdebug [-h|-help] [-arch] [lmdebug_log]"
+echo " "
+echo "    -h|-help          - Help."
+echo "    -arch             - Assume local host has architecture arch."
+echo "    lmdebug_log       - Path to the lmdebug logfile."
+echo '                        DEFAULT: ./lmdebug.out'
+echo " "
+echo "    Creates a log of diagnostic information about the FLEXnet license"
+echo "    manager used by MATLAB.  It uses configuration information found"
+echo "    normally in the file,"
+echo " "
+echo '                       $MATLAB/etc/lmopts.sh.'
+echo " "
+echo "------------------------------------------------------------------------"
+#-----------------------------------------------------------------------
+        exit 0
+    fi
+#
+# Set the environment and save the verbose output for the log
+#
+    verbose=1
+    . $LM_ROOTdefault/util/setlmenv.sh > /tmp/$$a
+#
+    check_lmdebug_log
+    if [ $? -ne 0 ]; then
+        rm -f /tmp/$$a
+        exit 1
+    fi
+#
+    trap " echo ' '; echo '    lmdebug aborted . . . Please try again.'; echo ' '; exit 1" 1 2 3 15
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo '                                MATLAB'
+echo '                     ----------------------------'
+echo '                     License Manager Debug Script'
+echo '                            Version 2.5'
+echo '                     ----------------------------'
+echo ' '
+echo 'This script creates a file containing diagnostic information to '
+echo 'help troubleshoot FLEXnet license manager problems with MATLAB.'
+echo ' '
+echo 'NOTE: If you are having trouble starting the license manager it is'
+echo '      most helpful to run this diagnostic tool on the host found'
+echo '      on the SERVER line of your license file.'
+echo ' '
+echo ' '
+echo 'Creating lmdebug logfile.  Please wait . . .'
+echo ' '                                 		       >  $LM_LMDEBUG_LOG
+echo "             MATLAB 'lmdebug' Output"                  >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG 
+echo 'lmdebug version : 2.5'				       >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                                 		       >> $LM_LMDEBUG_LOG
+echo "* License Number: `license_number`"		       >> $LM_LMDEBUG_LOG
+echo "*"                                		       >> $LM_LMDEBUG_LOG
+echo "* LM_ROOT root: $LM_ROOT"           		       >> $LM_LMDEBUG_LOG
+echo "* Hostname: `hostname`"      			       >> $LM_LMDEBUG_LOG
+echo "* Username: `getusername`"			       >> $LM_LMDEBUG_LOG
+echo "* Architecture: $ARCH"           		       	       >> $LM_LMDEBUG_LOG
+echo "* Date: `date`"                  		               >> $LM_LMDEBUG_LOG      
+echo "* Uname reports: `uname -a`" 			       >> $LM_LMDEBUG_LOG
+if [ "$ARCH" = "glnxa64" ]; then
+echo "* lsb_release reports:"                   	       >> $LM_LMDEBUG_LOG
+echo "`lsb_release --all`"	                               >> $LM_LMDEBUG_LOG
+fi
+echo ' ' 						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    cat /tmp/$$a                                               >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+echo 'Is local host a license manager server? :'               >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file=`actualpath $LM_FILE`
+    if [ "$file" != "" ]; then
+        (righthost) > /tmp/$$a
+	status=$?
+        if [ -s /tmp/$$a ]; then
+	    if [ $status -ne 0 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'No . . .'					               >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Not sure . . .'					       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	    cat /tmp/$$a | sed -e 's/Error:/Note: /' \
+			   -e 's/Warning:/Note:   /'	       >> $LM_LMDEBUG_LOG
+        else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Yes . . .'					       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        fi
+        rm -f /tmp/$$a
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_FILE : does not exit . . .'			       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Output of lmhostid :'				       >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    print_lmhostid					       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Output license.dat file(s) :'	       		       >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file=`actualpath $LM_FILE`
+    if [ "$file" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_FILE -'			               	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	cat $LM_FILE | sed -e 's/^/    /'		       >> $LM_LMDEBUG_LOG
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_FILE : does not exit . . .'			       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if [ "$LM_FILE" != "$LM_START_FILE" ]; then
+        file=`actualpath $LM_START_FILE`
+        if [ "$file" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_START_FILE -'			               	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    cat $LM_START_FILE | sed -e 's/^/    /'            >> $LM_LMDEBUG_LOG
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_START_FILE : does not exit . . .'		       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Output non-# comment lines in license.dat file(s) :'     >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file=`actualpath $LM_FILE`
+    if [ "$file" != "" ]; then
+        (comment_lines $LM_FILE) > /tmp/$$a
+        if [ -s /tmp/$$a ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_FILE -'			               	       >> $LM_LMDEBUG_LOG
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    cat /tmp/$$a 				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_FILE : None'			               	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_FILE : does not exit . . .'			       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if [ "$LM_FILE" != "$LM_START_FILE" ]; then
+        file=`actualpath $LM_START_FILE`
+        if [ "$file" != "" ]; then
+            (comment_lines $LM_FILE) > /tmp/$$a
+            if [ -s /tmp/$$a ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_START_FILE -'			               	       >> $LM_LMDEBUG_LOG
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    	cat /tmp/$$a 				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_START_FILE : None'			               >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_START_FILE : does not exit . . .'		       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Output local options file(s) :'	       		       >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file=`actualpath $LM_FILE`
+    if [ "$file" != "" ]; then
+#
+# Use the '#' as a separator between the daemon name and the options file.
+#
+	optionspath=`cat $LM_FILE | combine_cont_lines | awk '
+#-----------------------------------------------------------------------
+$1 == "DAEMON" { path = ""
+		 if (NF == 4) path = $4
+		 printf "%s ",$2 "#" path }'`
+#-----------------------------------------------------------------------
+        if [ "$optionspath" != "" ]; then
+	    for dpath in $optionspath
+	    do
+		daemon=`expr "$dpath" : '\([^#]*\)#.*'`
+		# First look for the options file using the new format
+		# of options=
+		p=`expr "$dpath" : '[^#]*#options=\(.*\)$'`
+		# If it isn't in the new format, try the old format.
+		if [ "$p" = "" ]; then
+		   p=`expr "$dpath" : '[^#]*#\(.*\)$'`
+		fi
+
+		if [ "$p" != "" ]; then
+    		    file=`actualpath $p`
+		else
+		    file=''
+		fi
+    		if [ "$file" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "DAEMON - $daemon ($file)"					>> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		    cat $file | sed -e 's/^/    /'	       >> $LM_LMDEBUG_LOG
+    		else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "DAEMON - $daemon - "				       >> $LM_LMDEBUG_LOG
+echo '    No options file . . .'			       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    		fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    done
+	fi
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'License file $LM_FILE does not exist . . .'	       >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+echo 'Output license manager logfile(s) : (last 50 lines)'     >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    file=`actualpath $LM_LOGFILE`
+    if [ "$file" != ""  ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_LOGFILE :'	         			       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	tail -n 50 $LM_LOGFILE | sed -e 's/^/    /'	       >> $LM_LMDEBUG_LOG
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_LOGFILE : does not exist . . .' 		       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if [ "$LM_LOGFILE" = "$LM_LOGFILE_REDUNDANT" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_LOGFILE_REDUNDANT : same as LM_LOGFILE . . .' 	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    else
+        file=`actualpath $LM_LOGFILE_REDUNDANT`
+        if [ "$file" != ""  ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_LOGFILE_REDUNDANT :' 		         	       >> $LM_LMDEBUG_LOG
+	    tail -n 50 $LM_LOGFILE_REDUNDANT | \
+			      sed -e 's/^/    /'	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'LM_LOGFILE_REDUNDANT : does not exist . . .' 	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        fi
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Check /etc links - license manager startup at boot :'    >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    linklist='/etc/lmboot_TMW /etc/lmdown_TMW /etc/lmboot /etc/lmdown'
+    for link in $linklist
+    do
+	if [ -f $link ]; then
+	    file=`actualpath $link`
+	    if [ "$file" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "$link :"						       >> $LM_LMDEBUG_LOG
+echo "    `ls -l $file`"                                       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "$link : link is bad . . ."                               >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    fi
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "$link : does not exist . . ."     	       	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    done
+echo 'Output fragments of license manager boot script(s) :'    >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#
+# Get directory to search from dirname of LM_BOOT_FRAGMENT
+#
+    dirname=`expr "$LM_BOOT_FRAGMENT" : '\(.*\)/[^/]*'`
+    if [ "$dirname" = "" ]; then
+        dirname='/'
+    fi
+    egrep -l '(lmboot|lmdown)' $dirname/* > /tmp/$$a 2>/dev/null
+    if [ -s /tmp/$$a ]; then
+#
+# input:  n:line
+# output: n1 n2
+#         where n1 and n2 bracket an instance of 'lmboot' or 'lmdown'
+#
+	DELTA_UP_OR_DOWN=5
+	(while read file
+	 do
+#
+# Be sure that dirname is not a directory or a file that has lmboot
+# or lmdown in it
+#
+	     if [ -d $file ]; then
+		continue
+	     else
+    	        base=`expr "$file" : '.*/\([^/]*\)$'`
+		base=`echo $base | egrep '(^lmboot$|^lmdown$|^lmboot_TMW$|^lmdown_TMW$)'`
+		if [ "$base" ]; then
+		    continue
+		fi
+	     fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "$file -"                    			       >> $LM_LMDEBUG_LOG
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    echo "$DELTA_UP_OR_DOWN" > /tmp/$$b
+    	    egrep -n '(lmboot|lmdown)' $file >> /tmp/$$b
+	    echo 'EOF' >> /tmp/$$b
+	    cat /tmp/$$b $file | awk '
+#-----------------------------------------------------------------------
+    BEGIN { state = 0; nrange = 0; nl = 0; nlast = 0 }
+    NR == 1 { delta = $1; next }
+    $1 == "EOF"  { state = 1; next }
+    state == "0" { ix = index($0,":")
+		   n = substr($0,1,ix-1)
+		   l = substr($0,ix+1)
+		   nrange = nrange + 1
+		   start[nrange] = n - delta
+	           end[nrange] = n + delta
+		 }
+    state == "1" { nl = nl + 1
+		   for (i = 1; i <= nrange; i = i + 1)
+		       if (start[i] <= nl && nl <= end[i]) {
+			   if (nl != nlast + 1 && nlast != 0) {
+			       print ""
+			   }
+			   nlast = nl
+			   print "    " nl "|" $0
+		           break
+		       }
+		  }'					       >> $LM_LMDEBUG_LOG
+#-----------------------------------------------------------------------
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	 done) < /tmp/$$a
+        rm -f /tmp/$$a /tmp/$$b
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'No fragments found . . .'     	       	       	       >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        rm -f /tmp/$$a
+    fi
+#
+echo 'Output process status (ps) of license manager :'         >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    PS_SEARCH_STRING="lm"
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "Search string - $PS_SEARCH_STRING"		       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    getpsinfo "$PS_SEARCH_STRING" > /tmp/$$a
+    if [ -s /tmp/$$a ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	cat /tmp/$$a | sed -e 's/^/    /' 		       >> $LM_LMDEBUG_LOG
+    else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'No processes found . . .'				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+    rm -f /tmp/$$a
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+echo 'Output of lmstat -a :'                                   >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    $LM_ROOT/lmstat -$ARCH -a 				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo 'Check access directory links :'		       	       >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    linklist='matlab mex'
+    for link in $linklist
+    do
+	pathlist=`searchpath $link`
+        if [ "$pathlist" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "$link :"		                                       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    for path in $pathlist
+	    do
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "    `ls -l $path`"				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    done
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "$link : not found on search path . . ."     	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    done
+echo 'Output of finger :'		       	               >> $LM_LMDEBUG_LOG
+echo '-------------------------------------------------------' >> $LM_LMDEBUG_LOG
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    (finger) > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+	if [ "$USER" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "USER - $USER"                    			       >> $LM_LMDEBUG_LOG
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    finger -m $USER | awk '
+#-----------------------------------------------------------------------
+    NF == 0 { exit }
+	    { print "    " $0 }'			       >> $LM_LMDEBUG_LOG 
+#-----------------------------------------------------------------------
+     else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "LOGNAME - $LOGNAME"                    		       >> $LM_LMDEBUG_LOG
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    finger -m $LOGNAME | awk '
+#-----------------------------------------------------------------------
+    NF == 0 { exit }
+	    { print "    " $0 }'			       >> $LM_LMDEBUG_LOG 
+#-----------------------------------------------------------------------
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        if [ "$USERNAME" != "" ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "USERNAME - $USERNAME"                    		       >> $LM_LMDEBUG_LOG
+echo ' '						       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    finger -m $USERNAME | awk '
+#-----------------------------------------------------------------------
+    NF == 0 { exit }
+	    { print "    " $0 }'			       >> $LM_LMDEBUG_LOG 
+#-----------------------------------------------------------------------
+	else
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo "USERNAME not defined . . ."                    	       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '                    				       >> $LM_LMDEBUG_LOG
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    fi
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo 'The diagnostic information is stored in the file'
+echo ' '
+echo "    $LM_LMDEBUG_LOG"
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    rm -f /tmp/$$a /tmp/$$b
+    exit $status

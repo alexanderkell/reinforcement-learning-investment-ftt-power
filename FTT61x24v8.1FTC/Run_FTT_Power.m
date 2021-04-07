@@ -2,26 +2,46 @@
 
 % action = "Hello";
 
-function observations = Run_FTT_Power(action, input_NWR, input_NET)
+function observations = Run_FTT_Power(port, actor_hidden, critic_hidden)
+    fprintf("starting")
+    pyenv('Version','/usr/bin/python3.7')
+    py.print("hello")
+%    pyenv("Version", "/home/ps/ce-fs2/akell/anaconda3/envs/ftt-power/bin/python", "ExecutionMode", "OutOfProcess")
+    pyenv
+    RTLD_NOW=2;
+    RTLD_DEEPBIND=8;
+    flag=bitor(RTLD_NOW, RTLD_DEEPBIND);
+    py.sys.setdlopenflags(int32(flag));
+
 % while true
+% for runner = 1:500
 % %     Initialise reinforcment learning client
-    import ray.rllib.env.policy_client.*
-    import gym.*
-    import numpy.*
+%     pyenv("ExecutionMode","OutOfProcess")
+%     pyenv
+%     pyenv('Version', 'usr/bin/python3.6')
+%     pyenv('Version',3.6)
+%     disp(pyenv);
+
+%    import ray.rllib.env.policy_client.*
+%    import gym.*
+%    import numpy.*
+
+%    import reinforcement_learning_client_server.*
+
+%     py.importlib.import_module('reinforcement_learning_client_server');
+
+%     py.numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape(11,-1)
+%     np
+
+%     disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
+%     env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
+    py.importlib.import_module('ray.rllib.env.policy_client')
+    port
+    address = strcat('http://127.0.0.1:', num2str(port));
+    address
+    client = py.ray.rllib.env.policy_client.PolicyClient(address);
+
     
-    import reinforcement_learning_client_server.*
-
-    py.importlib.import_module('reinforcement_learning_client_server');
-
-
-
-    disp(py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2));
-    env = py.reinforcement_learning_client_server.FTTPowerEnvironment(1, 2);
-
-
-    client = py.ray.rllib.env.policy_client.PolicyClient('http://127.0.0.1:9910');
-
-
 
 %     eid = client.start_episode();
 %     obs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -53,6 +73,7 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 %     handles.dtEdit = '0.25';
     handles.dtEdit = '0.25';
     handles.EndEdit = '2050';
+%     handles.EndEdit = '2020';
 
     AssumptionsFileName = strcat(handles.PathField,handles.CostsEdit);
     HistoricalFileName = strcat(handles.PathField,handles.HistoricalEdit);
@@ -91,10 +112,14 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
 
    
    [CostSheet, Unc,SubSheet,FiTSheet,RegSheet,DPSheet,CO2PSheet,MWKASheet, NET, HistoricalG, HistoricalE, CapacityFactors, CSCData, dt, NWR, EndYear] = CalcAll_Callback(handles);
+%     for runner = 1:50
+    num_of_runs_so_far = 0;
     while true
+        
         eid = client.start_episode();
 
-        obs = env.reset();
+%         obs = env.reset()
+        obs = py.numpy.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         if ~isempty(CostSheet)
        %Simulation here!
             clear handles.Scenario(k);
@@ -107,23 +132,34 @@ function observations = Run_FTT_Power(action, input_NWR, input_NET)
         E_cum = mean(output.E,'all');
         CF_cum = sum(sum(sum(output.CF)));
     %     LCOE_cum = sum(sum(sum(sum(output.LCOE))));
-        LCOE_cum = nanmean(output.LCOE,'all')
-        writematrix(output.LCOE,'LCOE.csv')
-        TLCOE_cum = nanmean(output.TLCOE,'all')
+        LCOE_cum = mean(output.LCOE,'all','omitnan');
+%         writematrix(output.LCOE,'LCOE.csv')
+        TLCOE_cum = mean(output.TLCOE,'all','omitnan');
         W_cum = sum(sum(sum(output.W)));
         I_cum = sum(sum(sum(output.I)));
-        P_cum = nanmean(output.P,'all');
+        P_cum = mean(output.P,'all','omitnan');
         Fcosts_cum = sum(sum(sum(output.FCosts)));
         CO2_costs_cum = sum(sum(sum(output.CO2Costs)));
         % S_lim_cum = 
         % S_lim2_cum = 
 
         % handles
-
-        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum]
-        reward = -(E_cum*1000 + LCOE_cum/1000)
+        
+        if mod(num_of_runs_so_far, 5000) == 1
+%             save(sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far)), output)
+%             output_title = sprintf('data/outputs/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
+            % output_title = sprintf('data/sensitivity_analysis/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
+            output_title = sprintf('data/better_bounds/output_sensitivity_analysis-actor_hidden_%s-critic_hidden_%s-%f.mat', actor_hidden, critic_hidden, floor(num_of_runs_so_far));
+            save(output_title, 'output')
+            
+        end
+        observations = [G_cum, U_cum, E_cum, CF_cum, LCOE_cum, TLCOE_cum, W_cum, I_cum, P_cum, Fcosts_cum, CO2_costs_cum];
+%         LCOE_cum
+        reward = -(E_cum*1000 + LCOE_cum/1000);
         client.log_returns(eid, reward)
         client.end_episode(eid, observations)
+        
+        num_of_runs_so_far = num_of_runs_so_far + 1;
     end
 end
 
@@ -201,6 +237,7 @@ CSCDataFileName = strcat(handles.PathField,handles.CSCDataEdit);
     HistoricalE = handles.HistoricalE;
     CapacityFactors = handles.CapacityFactors;
     CSCData = handles.CSCData;    
+    
 
 end
 %     set(handles.Slots(k),'BackgroundColor',[1 1 0]);

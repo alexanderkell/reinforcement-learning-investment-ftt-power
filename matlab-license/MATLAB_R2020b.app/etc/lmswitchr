@@ -1,0 +1,389 @@
+#!/bin/sh
+#
+#  Name:
+#
+#     lmswitchr	 switches the FLEXadmin report logfile for a feature.
+#     
+#  Usage:
+#
+#     lmswitchr 	[-h|-help] [-arch] [-v] feature newfile
+#
+#  Description:
+#
+#     This Bourne Shell script switches the FLEXadmin report logfile
+#     for a feature. It uses configuration information found normally
+#     in the file,
+#
+#                      $MATLAB/etc/lmopts.sh  
+#                              or 
+#                      $LM_ROOT/lmopts.sh     (standalone)
+#
+#     Command line arguments can override some of this configuration
+#     information.
+#
+#  Options:
+#
+#     -h | -help 	- Help. Print usage.
+#
+#     -arch             - Assume local host has architecture arch.
+#
+#     -v                - Verbose listing. Outputs the configuration
+#			  information.
+#
+#  lmswitchr_options:
+#
+#     feature		- Feature to switch.
+#
+#     newfile		- File to switch to.
+#
+# note(s):
+#
+#     1. This script executes without changing the current directory.
+#        This means that relative pathnames can be used in command
+#        options.
+#
+#  Copyright 1986-2018 The MathWorks, Inc.
+#-----------------------------------------------------------------------
+#23456789012345678901234567890123456789012345678901234567890123456789012
+#
+    arg0_=$0
+#
+    trap "rm -rf /tmp/$$a > /dev/null 2>&1; exit 1" 1 2 3 15
+#
+# Do not use ARCH if it exists in the environment
+#
+    if [ "$LM_SET_ENV" = "" -a "$ARCH" != "" ]; then
+        ARCH=""
+    fi
+#
+#========================= archlist.sh (start) ============================
+#
+# usage:        archlist.sh
+#
+# abstract:     This Bourne Shell script creates the variable ARCH_LIST.
+#
+# note(s):      1. This file is always imbedded in another script
+#
+# Copyright 1997-2013 The MathWorks, Inc.
+#----------------------------------------------------------------------------
+#
+    ARCH_LIST='glnxa64 maci64'
+#=======================================================================
+# Functions:
+#   check_archlist ()
+#=======================================================================
+    check_archlist () { # Sets ARCH. If first argument contains a valid
+			# arch then ARCH is set to that value else
+		        # an empty string. If there is a second argument
+			# do not output any warning message. The most
+			# common forms of the first argument are:
+			#
+			#     ARCH=arch
+			#     MATLAB_ARCH=arch
+			#     argument=-arch
+			#
+                        # Always returns a 0 status.
+                        #
+                        # usage: check_archlist arch=[-]value [noprint]
+                        #
+	if [ $# -gt 0 ]; then
+	    arch_in=`expr "$1" : '.*=\(.*\)'`
+	    if [ "$arch_in" != "" ]; then
+	        ARCH=`echo "$ARCH_LIST EOF $arch_in" | awk '
+#-----------------------------------------------------------------------
+	{ for (i = 1; i <= NF; i = i + 1)
+	      if ($i == "EOF")
+		  narch = i - 1
+	  for (i = 1; i <= narch; i = i + 1)
+		if ($i == $NF || "-" $i == $NF) {
+		    print $i
+		    exit
+		}
+	}'`
+#-----------------------------------------------------------------------
+	       if [ "$ARCH" = "" -a $# -eq 1 ]; then
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ' '
+echo "    Warning: $1 does not specify a valid architecture - ignored . . ."
+echo ' '
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	       fi
+	    else
+		ARCH=""
+	    fi
+	else
+	    ARCH=""
+	fi
+#
+	return 0
+    }
+#=======================================================================
+#========================= archlist.sh (end) ==============================
+#
+#=======================================================================
+#
+# Functions:
+#
+#   scriptpath ()
+#   standalone_lm ()
+#
+#=======================================================================
+    scriptpath () { # Returns path of this script as a directory,
+                    # ROOTDIR, and command name, CMDNAME.
+		    #
+		    # Returns a 0 status unless an error occurred.
+		    #
+                    # usage: scriptpath
+                    #
+#
+	filename=$arg0_
+#
+# Now it is either a file or a link to a file.
+#
+        cpath=`pwd`
+#
+# Follow up to 8 links before giving up. Same as BSD 4.3
+#
+        n=1
+        maxlinks=8
+        while [ $n -le $maxlinks ]
+        do
+#
+# Get directory correctly!
+#
+	    newdir=`echo "$filename" | awk '
+                { tail = $0
+                  np = index (tail, "/")
+                  while ( np != 0 ) {
+                      tail = substr (tail, np + 1, length (tail) - np)
+                      if (tail == "" ) break
+                      np = index (tail, "/")
+                  }
+                  head = substr ($0, 1, length ($0) - length (tail))
+                  if ( tail == "." || tail == "..")
+                      print $0
+                  else
+                      print head
+                }'`
+	    if [ ! "$newdir" ]; then
+	        newdir="."
+	    fi
+	    if [ ! -d $newdir ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 1: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $arg0_"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+	    cd $newdir
+#
+# Need the function pwd - not the built in one
+#
+	    newdir=`/bin/pwd`
+#
+	    newbase=`expr //$filename : '.*/\(.*\)' \| $filename`
+            lscmd=`ls -l $newbase 2>/dev/null`
+	    if [ ! "$lscmd" ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 2: Could not determine the path of the command.'
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	        return 1
+	    fi
+#
+# Check for link portably
+#
+	    if [ `expr "$lscmd" : '.*->.*'` -ne 0 ]; then
+	        filename=`echo "$lscmd" | awk '{ print $NF }'`
+	    else
+#
+# It's a file
+#
+	        dir="$newdir"
+	        CMDNAME="$newbase"
+	        LM_ROOTdefault=`/bin/pwd`
+	        break
+	    fi
+	    n=`expr $n + 1`
+        done
+        if [ $n -gt $maxlinks ]; then
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo ''
+echo 'Internal error 3: More than $maxlinks links in path to'
+echo "                  this script. That's too many!"
+echo ''
+echo "                  original command path = $filename"
+echo "                  current  command path = $filename"
+echo ''
+echo '                  Please contact:'
+echo '' 
+echo '                      MathWorks Technical Support'
+echo ''
+echo '                  for further assistance.'
+echo ''
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	    return 1
+        fi
+        cd $cpath
+        return 0
+    }
+#=======================================================================
+    standalone_lm () { # If install_matlab does not exist in the
+		       # parent directory then it is standalone
+		       # and output a 1 else 0.
+		       #
+		       # Always returns 0 status.
+                       #
+                       # usage: standalone_lm
+                       #
+	if [ ! -f $LM_ROOTdefault/../install_matlab ]; then
+	    echo 1
+	else
+	    echo 0
+	fi
+	return 0
+    }
+#=======================================================================
+#
+# Determine the default license manager root directory (LM_ROOTdefault)
+# and the current directory (cpath)
+#
+    scriptpath
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+#
+# Verify input
+#
+    stat="OK"
+    msg=""
+#
+    help=
+    verbose=
+    LM_SWITCHMODE=
+    arglist_lmswitchr=
+#
+    while [ "$stat" = "OK" -a $# -gt 0 ]; do
+	case "$1" in
+	    -h|-help)		# -help: Help option.
+	        help=1
+		;;
+	    -v)
+	        verbose=1
+		;;
+	    -w)
+		LM_SWITCHMODE=1
+		;;
+            -*)
+                arch=$ARCH
+                check_archlist argument=$1 noprint
+                if [ "$ARCH" = "" ]; then
+                    ARCH=$arch
+                    arglist_lmswitchr="$arglist_lmswitchr $1"
+                fi
+                ;;
+	    *)
+                arglist_lmswitchr="$arglist_lmswitchr $1"
+                ;;
+	esac
+	shift
+    done
+#
+    export help
+    export verbose
+    export LM_SWITCHMODE
+#
+    ck_licensefile=0; export ck_licensefile
+    ck_writelogfile=0; export ck_writelogfile
+#
+    if [ "$stat" = "" -o "$help" != "" ]; then
+	if [ "$msg" != "" ]; then
+#-----------------------------------------------------------------------
+    echo " "
+    echo "    Error: $msg"
+    echo " "
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+(
+echo "------------------------------------------------------------------------"
+echo " "
+echo "    Usage: lmswitchr  [-h|-help] [-arch] [-v] feature newfile"
+echo " "
+echo "    -h|-help          - Help."
+echo "    -arch             - Assume local host has architecture arch."
+echo "    -v                - Verbose listing. Outputs the configuration"
+echo "                        information."
+echo " "
+echo "    lmswitchr_options:"
+echo "    -----------------"
+echo " "
+echo "    feature           - Feature to switch."
+echo "    newfile           - File to switch to."
+echo " "
+echo "    Switches the FLEXadmin report logfile for a feature to newfile."
+echo "    The report logfile is set in the end-user options file. It uses"
+echo "    configuration information found normally in the file,"
+echo " "
+#-----------------------------------------------------------------------
+        if [ "`standalone_lm`" = "1" ]; then
+#-----------------------------------------------------------------------
+echo '                   $LM_ROOT/lmopts.sh.'
+#-----------------------------------------------------------------------
+	else
+#-----------------------------------------------------------------------
+echo '                   $MATLAB/etc/lmopts.sh.'
+#-----------------------------------------------------------------------
+	fi
+#-----------------------------------------------------------------------
+echo " "
+echo "    Command line arguments can override some of this configuration"
+echo "    information."
+echo " "
+echo "------------------------------------------------------------------------"
+) > /tmp/$$a
+#-----------------------------------------------------------------------
+	if [ "$help" = "1" ]; then
+	    verbose=1
+	    . $LM_ROOTdefault/util/setlmenv.sh >> /tmp/$$a
+	    more /tmp/$$a
+	else
+	    more /tmp/$$a
+	fi
+	rm -f /tmp/$$a
+        exit 1
+    fi
+#
+# Set the environment
+#
+    . $LM_ROOTdefault/util/setlmenv.sh
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo '------------------------------------------------------------------'
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    $LM_ROOT/$ARCH/lmswitchr $arglist_lmswitchr
+    status=$?
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo '------------------------------------------------------------------'
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    exit $status
