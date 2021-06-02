@@ -56,6 +56,6 @@ tabulate==0.8.7
 tensorboardX==2.1
 tensorflow
 typing-extensions==3.7.4.3
-urllib3==1.26.3
+urllib3==1.26.5
 yarl==1.6.3
 zipp==3.4.0
